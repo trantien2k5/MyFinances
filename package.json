@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "itty-router": "^5.0.22",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.0.9"
+  }
+}
