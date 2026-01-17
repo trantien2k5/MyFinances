@@ -109,12 +109,53 @@ function updateSyncStatus() {
     }
 }
 
+// PATCH_v2
+// PATCH_v2
 function logout() {
     if (confirm('Đăng xuất khỏi thiết bị này?')) {
         localStorage.removeItem('myfinances_token');
         localStorage.removeItem('myfinances_data');
         location.reload();
     }
+}
+
+function clearTransactions() {
+    if (confirm('Bạn có chắc muốn xóa TOÀN BỘ lịch sử giao dịch?')) {
+        APP_DATA.transactions = [];
+        saveData();
+        renderBudget();
+        updateDashboard();
+        showToast('Đã xóa sạch lịch sử giao dịch!', 'success');
+    }
+}
+
+function resetApp() {
+    const code = prompt('Nhập "DELETE" để xác nhận xóa toàn bộ dữ liệu:');
+    if (code === 'DELETE') {
+        localStorage.clear();
+        location.reload();
+    } else if (code !== null) {
+        alert('Mã xác nhận không đúng!');
+    }
+}
+
+function clearTransactions() {
+    showDialog('confirm', 'Xóa toàn bộ lịch sử giao dịch?', () => {
+        APP_DATA.transactions = [];
+        saveData(); renderBudget(); updateDashboard();
+        showToast('Đã xóa sạch giao dịch', 'success');
+    });
+}
+
+function resetApp() {
+    showDialog('confirm', '⚠️ NGUY HIỂM: Xóa TOÀN BỘ dữ liệu?', () => {
+        APP_DATA.loans = []; APP_DATA.transactions = []; APP_DATA.goals = [];
+        localStorage.removeItem('myfinances_data');
+        localStorage.removeItem('myfinances_setup');
+        saveData();
+        showToast('Đã reset app!', 'success');
+        setTimeout(() => location.reload(), 1000);
+    });
 }
 
 // --- CORE APP ---
