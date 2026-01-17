@@ -1,56 +1,13 @@
 // PATCH_v2
-// --- CONFIG: BACKEND CONNECT ---
-const API_URL = "http://localhost:8787/api"; 
-let AUTH_TOKEN = localStorage.getItem('myfinances_token');
-
-// --- CORE: STATE MANAGEMENT ---
-// PATCH_v2: Auth Logic
-let isLoginMode = true;
-function toggleAuthMode() {
-    isLoginMode = !isLoginMode;
-    document.getElementById('btn-auth').innerText = isLoginMode ? "Đăng nhập" : "Đăng ký";
-    document.getElementById('link-auth').innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký" : "Quay lại Đăng nhập";
-}
-
-async function handleAuth(e) {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-pass').value;
-    const errBox = document.getElementById('auth-error');
-
-    try {
-        const res = await fetch(API_URL + (isLoginMode ? '/login' : '/register'), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass })
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Lỗi kết nối');
-
-        if (isLoginMode) {
-            localStorage.setItem('myfinances_token', data.token);
-            AUTH_TOKEN = data.token;
-            document.getElementById('auth-modal').classList.add('hidden');
-            showToast(`Xin chào ${data.user.email}!`, 'success');
-            initApp();
-        } else {
-            showToast('Đăng ký thành công! Hãy đăng nhập.', 'success');
-            toggleAuthMode();
-        }
-    } catch (err) {
-        errBox.innerText = err.message; errBox.classList.remove('hidden');
-    }
-}
-
 const APP_DATA = {
-
-
-
     loans: [],
-    transactions: []
+    transactions: [],
+    goals: [] 
 };
 
+// PATCH_v2
 // --- CONFIG BACKEND ---
-const API_URL = "http://localhost:8787/api"; // Địa chỉ Server Cloudflare của bạn
+const API_URL = "https://my-finances-backend.trantien.workers.dev/api"; // Server Production
 let AUTH_TOKEN = localStorage.getItem('myfinances_token');
 
 // --- AUTH LOGIC ---
@@ -112,36 +69,43 @@ async function handleAuth(e) {
 // PATCH_v2
 // PATCH_v2
 // PATCH_v2
-function initApp() {
-    // PATCH_v2: Check Login First
-    if (!localStorage.getItem('myfinances_token')) {
-        document.getElementById('auth-modal').classList.remove('hidden');
-        return; 
-    } else {
-        document.getElementById('auth-modal').classList.add('hidden');
+// PATCH_v2
+async function saveData() {
+    localStorage.setItem('myfinances_data', JSON.stringify(APP_DATA));
+    if (AUTH_TOKEN) {
+        try {
+            await fetch(API_URL + '/data', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
+                body: JSON.stringify({ data: APP_DATA })
+            });
+        } catch (e) { console.warn("Cloud save error"); }
     }
+}
 
-    // Check First Time
-    if (!localStorage.getItem('myfinances_data') && !localStorage.getItem('myfinances_setup')) {
-        document.getElementById('setup-wizard').classList.remove('hidden');
-    } else {
-        checkLock(); // Only check PIN if set up already
-    }
+async function initApp() {
+    if (!AUTH_TOKEN) return document.getElementById('auth-modal').classList.remove('hidden');
+    document.getElementById('auth-modal').classList.add('hidden');
 
-    try {
+    try { // 1. Load Local
         const saved = localStorage.getItem('myfinances_data');
         if (saved) Object.assign(APP_DATA, JSON.parse(saved));
-    } catch (e) {
-        console.warn("Dữ liệu lỗi, tự động reset:", e);
-        // Không xóa localStorage ngay để user còn cơ hội cứu, chỉ load default
+    } catch (e) {}
+    renderLoans(); renderBudget(); updateDashboard(); // PATCH_v2: Removed checkLock()
+
+    try { // 2. Load Cloud
+        const res = await fetch(API_URL + '/data', { headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN } });
+        const json = await res.json();
+        if (json.success && json.data) {
+            Object.assign(APP_DATA, json.data);
+            localStorage.setItem('myfinances_data', JSON.stringify(APP_DATA));
+            renderLoans(); renderBudget(); updateDashboard();
+            showToast('Đã đồng bộ dữ liệu!', 'success');
+        }
+    } catch (e) {}
+
+    if (!APP_DATA.transactions.length && !localStorage.getItem('myfinances_setup')) {
+        document.getElementById('setup-wizard').classList.remove('hidden');
     }
-
-    // Render an toàn
-    renderLoans();
-    renderBudget();
-    updateDashboard();
-
-    // Mặc định vào Dashboard cho đẹp
     switchTab('dashboard');
 }
 
@@ -295,62 +259,27 @@ function showDialog(type, msg, callback, defaultVal = '') {
 function closeDialog() { document.getElementById('custom-dialog').classList.add('hidden'); }
 
 // PATCH_v2
+// PATCH_v2
 // --- LOGIC: SETUP ---
 function finishSetup() {
     const bal = Number(document.getElementById('initBalance').value);
-    const pin = document.getElementById('initPin').value;
 
     if (bal > 0) {
-        // Create initial deposit
         APP_DATA.transactions.push({
             id: Date.now(),
-            type: 'income',
-            amount: bal,
+            type: 'income', amount: bal,
             catId: 'salary', catName: 'Vốn đầu kỳ', icon: '💰',
-            desc: 'Số dư ban đầu',
-            date: new Date().toISOString()
+            desc: 'Số dư ban đầu', date: new Date().toISOString()
         });
     }
 
-    if (pin && pin.length === 4) {
-        localStorage.setItem('myfinances_pin', pin);
-    }
-
-    localStorage.setItem('myfinances_setup', 'true'); // Mark as done
+    localStorage.setItem('myfinances_setup', 'true');
     saveData();
-
-    // Hide Wizard
     document.getElementById('setup-wizard').classList.add('hidden');
-    initApp(); // Reload to apply changes
+    initApp();
 }
 
-// --- LOGIC: SECURITY ---
-function checkLock() {
-    const pin = localStorage.getItem('myfinances_pin');
-    if (pin) {
-        document.getElementById('pin-lock').classList.remove('hidden');
-        document.getElementById('pinInput').focus();
-    }
-}
-
-function unlockApp() {
-    const pin = localStorage.getItem('myfinances_pin');
-    const input = document.getElementById('pinInput').value;
-    if (input === pin) {
-        document.getElementById('pin-lock').classList.add('hidden');
-    } else {
-        document.getElementById('pin-msg').innerText = "Sai mã PIN!";
-        document.getElementById('pinInput').value = '';
-    }
-}
-
-function setPin() {
-    const newPin = prompt("Đặt mã PIN mới (4 số):");
-    if (newPin && newPin.length === 4) {
-        localStorage.setItem('myfinances_pin', newPin);
-        alert("Đã bật bảo mật PIN!");
-    }
-}
+// PATCH_v2: Security Logic Removed
 
 // --- LOGIC: SYSTEM / DATA ---
 // PATCH_v2

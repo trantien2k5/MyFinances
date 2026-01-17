@@ -47,7 +47,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1">Mật khẩu</label>
-                        <input type="password" id="auth-pass" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="••••••••" required>
+                        <input type="password" id="auth-pass" autocomplete="current-password" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="••••••••" required>
                     </div>
                     
                     <button type="submit" id="btn-auth" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30">
@@ -279,7 +279,7 @@
         <button onclick="switchTab('account')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="account"><i class="fa-solid fa-user-gear text-xl mb-1"></i>Account</button>
     </nav>
 
-    <div id="toast-container" class="fixed top-5 right-5 z-[70] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[210] flex flex-col gap-2 pointer-events-none"></div>
 
     <div id="setup-wizard" class="hidden fixed inset-0 bg-blue-600 z-[110] flex flex-col items-center justify-center p-6 text-white transition-opacity">
         <div class="max-w-md w-full text-center">
@@ -292,24 +292,14 @@
                     <label class="block text-sm font-bold text-slate-500 mb-1">Tiền đang có (Tất cả các ví)</label>
                     <input type="number" id="initBalance" placeholder="VD: 5000000" class="w-full border-2 border-blue-100 p-3 rounded-xl text-xl font-bold text-blue-600 outline-none focus:border-blue-500">
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-500 mb-1">Đặt mã PIN bảo mật (4 số)</label>
-                    <input type="number" id="initPin" placeholder="VD: 1234" class="w-full border p-3 rounded-xl text-center tracking-widest text-lg outline-none focus:border-blue-500">
-                    <p class="text-xs text-slate-400 mt-1">* Để trống nếu không muốn đặt PIN</p>
-                </div>
+                <button onclick="setPin()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
+                        <i class="fa-solid fa-lock mr-2 text-orange-500"></i> Đổi mã PIN
+                    </button>
                 <button onclick="finishSetup()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
                     Bắt đầu ngay <i class="fa-solid fa-arrow-right ml-2"></i>
                 </button>
             </div>
         </div>
-    </div>
-
-    <div id="pin-lock" class="hidden fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center p-4 text-white">
-        <div class="mb-6 text-4xl"><i class="fa-solid fa-shield-cat"></i></div>
-        <h2 class="text-xl font-bold mb-4">Nhập mã PIN để truy cập</h2>
-        <input type="password" id="pinInput" class="bg-slate-800 border border-slate-700 p-3 rounded-xl text-center text-2xl tracking-[0.5em] w-48 outline-none focus:border-blue-500 mb-4" maxlength="4" placeholder="••••">
-        <button onclick="unlockApp()" class="bg-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-500">Mở khóa</button>
-        <p id="pin-msg" class="text-red-400 mt-4 text-sm"></p>
     </div>
 
     <div id="custom-dialog" class="hidden fixed inset-0 bg-slate-900/60 z-[90] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
@@ -396,36 +386,7 @@
         </div>
     </div>
 
-    <div id="auth-modal" class="fixed inset-0 bg-slate-900 z-[200] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-            <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">☁️ MyFinances Cloud</h1>
-            <div id="auth-error" class="hidden bg-red-50 text-red-500 text-sm p-3 rounded-lg mb-4 text-center"></div>
-            <form onsubmit="handleAuth(event)" class="space-y-4">
-                <input type="email" id="auth-email" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="Email" required>
-                <input type="password" id="auth-pass" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="Mật khẩu" required>
-                <button type="submit" id="btn-auth" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">Đăng nhập</button>
-            </form>
-            <div class="mt-4 text-center">
-                <button onclick="toggleAuthMode()" id="link-auth" class="text-blue-600 text-sm font-bold hover:underline">Chưa có tài khoản? Đăng ký</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="auth-modal" class="hidden fixed inset-0 bg-slate-900 z-[200] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-            <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">☁️ MyFinances Cloud</h1>
-            <div id="auth-error" class="hidden bg-red-50 text-red-500 text-sm p-3 rounded-lg mb-4 text-center"></div>
-            <form onsubmit="handleAuth(event)" class="space-y-4">
-                <input type="email" id="auth-email" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="Email" required>
-                <input type="password" id="auth-pass" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="Mật khẩu" required>
-                <button type="submit" id="btn-auth" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">Đăng nhập</button>
-            </form>
-            <div class="mt-4 text-center">
-                <button onclick="toggleAuthMode()" id="link-auth" class="text-blue-600 text-sm font-bold hover:underline">Chưa có tài khoản? Đăng ký</button>
-            </div>
-        </div>
-    </div>
-
+    // PATCH_v2
     <script src="script.js"></script>
 </body>
 </html>

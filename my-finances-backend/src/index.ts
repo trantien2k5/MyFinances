@@ -1,15 +1,24 @@
-import { AutoRouter } from 'itty-router';
+// PATCH_v2
+import { AutoRouter, cors } from 'itty-router';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-// 1. Định nghĩa Môi trường (Env) - Khai báo biến Database
+// 1. Định nghĩa Môi trường (Env)
 export interface Env {
 	my_finances_db: D1Database;
 }
 
-// 2. Khởi tạo Router (Có sẵn xử lý CORS để trình duyệt không chặn)
+// 2. Cấu hình CORS (Cho phép mọi nguồn)
+const { preflight, corsify } = cors({
+    origin: '*',
+    allowMethods: 'GET, POST, PUT, DELETE, OPTIONS',
+    allowHeaders: 'Content-Type, Authorization',
+});
+
+// 3. Khởi tạo Router (Thêm preflight vào trước để xử lý OPTIONS)
 const router = AutoRouter({
-	base: '/api', // Mọi API sẽ bắt đầu bằng /api
+	base: '/api',
+	before: [preflight], 
 });
 
 const SECRET_KEY = "day-la-bi-mat-cua-ban"; // Khóa bí mật để tạo Token (Sau này nên đưa vào .dev.vars)
@@ -69,5 +78,36 @@ router.post('/login', async (req, env: Env) => {
 	}
 });
 
-// --- XUẤT WORKER ---
-export default { ...router };
+// PATCH_v2
+// --- MIDDLEWARE & DATA API ---
+const checkAuth = async (req: any) => {
+	const auth = req.headers.get('Authorization');
+	if (!auth) throw new Error('Chưa đăng nhập');
+	return jwt.verify(auth.replace('Bearer ', ''), SECRET_KEY);
+};
+
+router.get('/data', async (req, env: Env) => {
+	try {
+		const user: any = await checkAuth(req);
+		const rec: any = await env.my_finances_db.prepare('SELECT content FROM user_data WHERE user_id = ?').bind(user.id).first();
+		return { success: true, data: rec ? JSON.parse(rec.content) : null };
+	} catch (e) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 401 }); }
+});
+
+router.post('/data', async (req, env: Env) => {
+	try {
+		const user: any = await checkAuth(req);
+		const { data } = await req.json() as any;
+		await env.my_finances_db.prepare(
+			'INSERT INTO user_data (user_id, content) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET content = ?, updated_at = CURRENT_TIMESTAMP'
+		).bind(user.id, JSON.stringify(data), JSON.stringify(data)).run();
+		return { success: true };
+	} catch (e) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 }); }
+});
+
+// PATCH_v2
+// --- XUẤT WORKER (Bọc thêm corsify để gắn header vào response) ---
+export default { 
+    ...router, 
+    fetch: async (req: any, env: any) => router.fetch(req, env).then(corsify)
+};
