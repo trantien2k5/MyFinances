@@ -368,31 +368,99 @@ function deleteGoal(id) {
 }
 
 // PATCH_v2
+// PATCH_v2
 function initLoanForm() {
     const sel = document.getElementById('loanDay');
-    if(sel.children.length === 0) {
+    if(sel && sel.children.length === 0) {
         sel.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i+1}">Ngày ${i+1}</option>`).join('');
     }
 }
 
+// PATCH_v2
+// PATCH_v2
 function calcLoanPreview() {
+    const e = window.event;
+    if (e && (e.inputType === 'insertCompositionText' || e.isComposing)) return;
     const amtEl = document.getElementById('loanAmount');
     let rawAmt = amtEl.value.replace(/\D/g, '');
-    amtEl.value = rawAmt ? parseInt(rawAmt).toLocaleString('vi-VN') : '';
+    let formatted = rawAmt ? parseInt(rawAmt).toLocaleString('vi-VN') : '';
+    if (amtEl.value !== formatted) amtEl.value = formatted;
 
-    const P = Number(rawAmt);
-    const r = (Number(document.getElementById('loanRate').value) || 0) / 100 / 12;
-    const n = Number(document.getElementById('loanTerm').value);
+    const P = Number(rawAmt), n = Number(document.getElementById('loanTerm').value);
+    let inputRate = Number(document.getElementById('loanRate').value) || 0;
+    const rateType = document.getElementById('rateType').value;
+    const yearlyRate = rateType === 'month' ? inputRate * 12 : inputRate;
+    const r = yearlyRate / 100 / 12;
+    const method = document.getElementById('interestMethod').value; // 'reducing' | 'flat'
     
     const prev = document.getElementById('loan-preview');
     if (P > 0 && n > 0) {
         prev.classList.remove('hidden');
-        const emi = (r === 0) ? (P / n) : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        let emi = 0;
+        if (method === 'flat') {
+            emi = (P / n) + (P * r); // Gốc chia đều + Lãi trên gốc ban đầu
+        } else {
+            emi = (r === 0) ? (P / n) : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        }
         const totalInterest = (emi * n) - P;
         document.getElementById('prev-emi').innerText = formatMoney(Math.round(emi)) + '/tháng';
         document.getElementById('prev-interest').innerText = formatMoney(Math.max(0, Math.round(totalInterest)));
+    } else { prev.classList.add('hidden'); }
+}
+
+function handleSaveLoan(e) {
+    e.preventDefault();
+    const id = document.getElementById('loanId').value;
+    let inputRate = Number(document.getElementById('loanRate').value) || 0;
+    const rateType = document.getElementById('rateType').value;
+    const yearlyRate = rateType === 'month' ? inputRate * 12 : inputRate;
+
+    const loanData = {
+        name: document.getElementById('loanName').value, code: document.getElementById('loanCode').value,
+        startDate: document.getElementById('loanStart').value || new Date().toISOString().split('T')[0],
+        day: Number(document.getElementById('loanDay').value),
+        amount: Number(document.getElementById('loanAmount').value.replace(/\./g, '')),
+        rate: yearlyRate, term: Number(document.getElementById('loanTerm').value),
+        method: document.getElementById('interestMethod').value
+    };
+    if (id) {
+        const idx = APP_DATA.loans.findIndex(l => l.id == id);
+        if (idx !== -1) APP_DATA.loans[idx] = { ...APP_DATA.loans[idx], ...loanData };
     } else {
-        prev.classList.add('hidden');
+        APP_DATA.loans.push({ id: Date.now(), paid: 0, date: new Date().toISOString(), ...loanData });
+    }
+    saveData(); closeModal(); renderLoans(); showToast('Đã lưu khoản vay', 'success');
+}
+
+// Cập nhật renderLoans để tính đúng EMI hiển thị
+const _oldRenderLoans = renderLoans;
+renderLoans = () => {
+    // Override logic tính EMI trong map
+    const list = document.getElementById('debt-list');
+    if (!list) return;
+    _oldRenderLoans(); // Gọi hàm cũ để render khung, sau đó patch lại HTML nếu cần (hoặc sửa trực tiếp logic renderLoans gốc nếu bạn muốn clean hơn)
+    // Tốt nhất là sửa hàm renderLoans gốc. Hãy Paste block dưới đè lên hàm renderLoans cũ
+};
+
+// FIX: Cập nhật luôn hàm format ở màn hình Thu Chi
+function onAmountInput(el) {
+    const e = window.event;
+    if (e && (e.inputType === 'insertCompositionText' || e.isComposing)) return;
+
+    let val = Number(el.value.replace(/\D/g, ''));
+    let formatted = val ? val.toLocaleString('vi-VN') : '';
+    if (el.value !== formatted) el.value = formatted;
+    
+    const btn = document.getElementById('btn-save');
+    if (btn) {
+        btn.disabled = !val;
+        if (val) {
+            btn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
+        } else {
+            btn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+            btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
+        }
     }
 }
 
@@ -605,14 +673,13 @@ function renderLoans() {
     
     if (APP_DATA.loans.length === 0) {
         list.innerHTML = ''; list.classList.add('hidden');
-        empty.classList.remove('hidden'); stratBox.classList.add('hidden');
-        document.getElementById('total-debt').innerText = '0 ₫';
-        document.getElementById('monthly-pay').innerText = '0 ₫';
-        document.getElementById('next-due-date').innerText = '--/--';
+        if(empty) empty.classList.remove('hidden'); 
+        if(stratBox) stratBox.classList.add('hidden');
+        if(document.getElementById('total-debt')) document.getElementById('total-debt').innerText = '0 ₫';
         return;
     }
 
-    list.classList.remove('hidden'); empty.classList.add('hidden'); stratBox.classList.remove('hidden');
+    list.classList.remove('hidden'); if(empty) empty.classList.add('hidden'); if(stratBox) stratBox.classList.remove('hidden');
     document.getElementById('strategy-name').innerText = debtStrategy === 'snowball' ? 'Snowball (Trả khoản nhỏ trước)' : 'Avalanche (Trả lãi cao trước)';
 
     let totalRemaining = 0, totalMonthly = 0, closestDate = null;
@@ -625,14 +692,19 @@ function renderLoans() {
 
     list.innerHTML = loans.map(loan => {
         const r = loan.rate / 100 / 12, n = loan.term;
-        const emi = (r === 0) ? (loan.amount / n) : (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        let emi = 0;
+        // Logic tính EMI theo Method
+        if (loan.method === 'flat') {
+             emi = (loan.amount / n) + (loan.amount * r);
+        } else {
+             emi = (r === 0) ? (loan.amount / n) : (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        }
+        
         const paid = loan.paid || 0, remaining = Math.max(0, loan.amount - paid);
         totalRemaining += remaining; totalMonthly += remaining > 0 ? emi : 0;
         
-        // Find next due date
         if (remaining > 0) {
             let d = loan.day; 
-            let nextD = d >= today ? d : d; // Logic đơn giản: hiển thị ngày Hàng tháng
             if (!closestDate || (d >= today && d < closestDate)) closestDate = d;
         }
 
@@ -641,7 +713,7 @@ function renderLoans() {
             ${remaining > 0 ? `<div class="absolute top-0 right-0 bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-bl-lg">Hạn: ngày ${loan.day}</div>` : ''}
             <div class="flex justify-between items-start mb-3 mt-1">
                 <div><div class="font-bold text-slate-800 text-lg truncate w-48 ${remaining === 0 ? 'line-through opacity-50' : ''}">${loan.name}</div>
-                <div class="text-xs text-slate-400 font-mono">Lãi: ${loan.rate}% • ${remaining > 0 ? 'Còn ' + (loan.term) + ' kỳ' : 'Xong'}</div></div>
+                <div class="text-xs text-slate-400 font-mono">Lãi: ${loan.rate}% • ${loan.method === 'flat' ? 'Lãi phẳng' : 'Giảm dần'}</div></div>
                 <button onclick="openModal(${loan.id})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
             </div>
             
@@ -659,7 +731,7 @@ function renderLoans() {
 
     document.getElementById('total-debt').innerText = formatMoney(totalRemaining);
     document.getElementById('monthly-pay').innerText = formatMoney(Math.round(totalMonthly));
-    document.getElementById('next-due-date').innerText = closestDate ? `Ngày ${closestDate}` : 'Không có';
+    document.getElementById('next-due-date').innerText = closestDate ? `Ngày ${closestDate}` : '---';
 }
 
 function showDialog(type, msg, callback, defaultVal = '') {

@@ -353,7 +353,7 @@
         </div>
     </div>
 
-    // PATCH_v2
+    
     <div id="modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[90vh]">
             <div class="p-4 border-b flex justify-between items-center bg-slate-50"><h3 class="font-bold text-lg text-slate-800" id="modal-title">Khoản vay mới</h3><button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500"><i class="fa-solid fa-xmark"></i></button></div>
@@ -369,7 +369,23 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div><label class="block text-xs font-bold text-slate-500 mb-1">Kỳ hạn (Tháng) <span class="text-red-500">*</span></label><input type="number" id="loanTerm" oninput="calcLoanPreview()" placeholder="12" class="w-full border p-2 rounded-lg outline-none focus:border-blue-500" required></div>
-                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Lãi suất (%/Năm)</label><input type="number" id="loanRate" oninput="calcLoanPreview()" placeholder="0" step="0.1" class="w-full border p-2 rounded-lg outline-none focus:border-blue-500"></div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Lãi suất</label>
+                        <div class="flex">
+                            <input type="number" id="loanRate" oninput="calcLoanPreview()" placeholder="0" step="0.1" class="w-full border-y border-l p-2 rounded-l-lg outline-none focus:border-blue-500">
+                            <select id="rateType" onchange="calcLoanPreview()" class="bg-slate-100 border p-2 rounded-r-lg text-xs font-bold outline-none text-slate-600">
+                                <option value="year">/Năm</option>
+                                <option value="month">/Tháng</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Cách tính lãi</label>
+                    <select id="interestMethod" onchange="calcLoanPreview()" class="w-full border p-2 rounded-lg outline-none text-sm font-bold bg-slate-50 text-slate-700">
+                        <option value="reducing">Dư nợ giảm dần (Ngân hàng)</option>
+                        <option value="flat">Theo dư nợ gốc (Tín chấp/Trả góp)</option>
+                    </select>
                 </div>
 
                 <div id="loan-preview" class="bg-blue-50 p-3 rounded-xl border border-blue-100 hidden">
