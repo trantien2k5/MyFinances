@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyFinances - Quản lý nợ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#2563eb', danger: '#dc2626' }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <aside class="hidden md:flex flex-col w-64 bg-white border-r h-full p-6">
+        <h1 class="text-2xl font-bold text-blue-600 mb-8"><i class="fa-solid fa-sack-dollar"></i> MyFinances</h1>
+        <nav class="space-y-2">
+            <button onclick="switchTab('dashboard')" class="nav-btn w-full text-left p-3 rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium" data-target="dashboard">
+                <i class="fa-solid fa-chart-pie w-6"></i> Tổng quan
+            </button>
+            <button onclick="switchTab('debts')" class="nav-btn w-full text-left p-3 rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium" data-target="debts">
+                <i class="fa-solid fa-credit-card w-6"></i> Quản lý Nợ
+            </button>
+            <button onclick="switchTab('budget')" class="nav-btn w-full text-left p-3 rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium" data-target="budget">
+                <i class="fa-solid fa-wallet w-6"></i> Thu Chi
+            </button>
+            <button onclick="switchTab('goals')" class="nav-btn w-full text-left p-3 rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium" data-target="goals">
+                <i class="fa-solid fa-bullseye w-6"></i> Mục tiêu
+            </button>
+            <button onclick="switchTab('account')" class="nav-btn w-full text-left p-3 rounded-lg hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium" data-target="account">
+                <i class="fa-solid fa-user-gear w-6"></i> Tài khoản
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 relative pb-20 md:pb-8" id="main-container">
+        <div id="dashboard" class="tab-content active">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-2xl font-bold">Tổng quan</h2>
+                <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">Chế độ sinh tồn</span>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl shadow-sm border mb-4">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="font-bold text-slate-700">Ngân sách Tuần (Gợi ý: 1.5tr)</span>
+                    <span id="weekly-status" class="text-slate-500">Đã tiêu tuần này</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 mb-2 overflow-hidden">
+                    <div id="weekly-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">
+                    <i class="fa-solid fa-circle-info mr-1"></i> Ưu tiên giữ "Tiền sống" cho 7 ngày tới [cite: 21]
+                </div>
+            </div>
+            
+            <div id="health-card" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5 rounded-xl shadow-lg mb-6 flex items-start gap-4">
+                <div class="text-3xl bg-white/20 w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div>
+                    <div class="flex justify-between items-start w-full">
+                        <div>
+                            <h3 class="font-bold text-lg">Phân tích Hệ thống</h3>
+                            <p id="health-msg" class="text-sm opacity-90 mt-1">Đang phân tích dữ liệu...</p>
+                        </div>
+                        <button onclick="openReport()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm font-bold border border-white/40 shadow-sm transition-all">
+                            <i class="fa-solid fa-chart-simple mr-1"></i> Báo cáo Tháng
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border">
+                    <h3 class="font-bold text-slate-700 mb-4">Tài sản vs Nợ</h3>
+                    <canvas id="chartAssets"></canvas>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border">
+                    <h3 class="font-bold text-slate-700 mb-4">Phân bổ chi tiêu</h3>
+                    <canvas id="chartExpense"></canvas>
+                </div>
+            </div>
+
+        </div>
+        <div id="debts" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4">Quản lý Khoản vay</h2>
+            
+            <div class="grid grid-cols-2 gap-3 md:gap-4 mb-6">
+                <div class="bg-white p-4 rounded-xl border-l-4 border-red-500 shadow-sm">
+                    <div class="text-xs text-slate-500 uppercase font-bold">Tổng gốc còn lại</div>
+                    <div class="text-lg md:text-2xl font-bold text-red-600 mt-1 truncate" id="total-debt">0 ₫</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border-l-4 border-orange-500 shadow-sm">
+                    <div class="text-xs text-slate-500 uppercase font-bold">Trả tháng này</div>
+                    <div class="text-lg md:text-2xl font-bold text-orange-600 mt-1 truncate" id="monthly-pay">0 ₫</div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-sm font-semibold text-slate-500 uppercase">Danh sách nợ</span>
+                <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-sm active:scale-95 transition-transform">
+                    <i class="fa-solid fa-plus mr-1"></i> Thêm mới
+                </button>
+            </div>
+
+            <div id="debt-list" class="space-y-3 pb-24">
+                <div class="text-center text-slate-400 py-10">Đang tải dữ liệu...</div>
+            </div>
+        </div>
+        <div id="goals" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4">Mục tiêu Tiết kiệm</h2>
+            <form onsubmit="handleAddGoal(event)" class="flex gap-2 mb-6">
+                <input type="text" id="goalName" placeholder="Mục tiêu (vd: Mua iPhone)" class="flex-1 p-3 border rounded-xl outline-none focus:ring-2 ring-blue-100" required>
+                <input type="number" id="goalTarget" placeholder="Cần có (VNĐ)" class="w-1/3 p-3 border rounded-xl outline-none font-bold text-right" required>
+                <button type="submit" class="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700"><i class="fa-solid fa-plus"></i></button>
+            </form>
+            <div id="goal-list" class="grid md:grid-cols-2 gap-4 pb-20">
+                </div>
+        </div>
+
+        <div id="account" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4">Tài khoản & Cài đặt</h2>
+            
+            <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center"><i class="fa-solid fa-wallet text-blue-600 mr-2"></i> Đồng bộ Số dư Ví</h3>
+                <div class="bg-blue-50 p-4 rounded-lg mb-4 flex justify-between items-center">
+                    <span class="text-sm text-slate-500">Số dư trên App</span>
+                    <span class="font-bold text-xl text-blue-600" id="acc-app-balance">...</span>
+                </div>
+                <div class="flex gap-3 items-end">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Thực tế đang có</label>
+                        <input type="number" id="realBalance" placeholder="Nhập số tiền thực tế" class="w-full p-2 border rounded-lg font-bold outline-none focus:border-blue-500">
+                    </div>
+                    <button onclick="handleAdjustBalance()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 h-10 shadow-md active:scale-95 transition-transform">
+                        Cập nhật
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">* Hệ thống sẽ tự tạo giao dịch "Điều chỉnh" để khớp số liệu.</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center"><i class="fa-solid fa-shield-halved text-green-600 mr-2"></i> Dữ liệu & Bảo mật</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="exportData()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
+                        <i class="fa-solid fa-download mr-2 text-blue-500"></i> Backup JSON
+                    </button>
+                    <button onclick="exportCSV()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
+                        <i class="fa-solid fa-file-excel mr-2 text-green-500"></i> Xuất Excel
+                    </button>
+                    <label class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm cursor-pointer">
+                        <i class="fa-solid fa-upload mr-2 text-purple-500"></i> Khôi phục File
+                        <input type="file" onchange="importData(this)" class="hidden" accept=".json">
+                    </label>
+                    <button onclick="setPin()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
+                        <i class="fa-solid fa-lock mr-2 text-orange-500"></i> Đổi mã PIN
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-red-50 p-5 rounded-xl border border-red-100">
+                <h3 class="font-bold text-red-700 mb-4 flex items-center"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Vùng nguy hiểm</h3>
+                <div class="flex gap-3">
+                    <button onclick="clearTransactions()" class="flex-1 bg-white border border-red-200 text-red-600 py-2 rounded-lg font-medium text-sm hover:bg-red-50">
+                        Xóa Lịch sử Thu/Chi
+                    </button>
+                    <button onclick="resetApp()" class="flex-1 bg-red-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-red-700 shadow-sm">
+                        Reset App (Xóa hết)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-8 text-center text-xs text-slate-400">MyFinances Pro v2.1</div>
+        </div>
+
+        <div id="budget" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4">Sổ Thu Chi</h2>
+            
+            <div class="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 rounded-2xl shadow-lg mb-6">
+                <div class="text-sm opacity-80 mb-1">Số dư hiện tại</div>
+                <div class="text-3xl font-bold" id="wallet-balance">0 ₫</div>
+                <div class="flex mt-4 pt-4 border-t border-white/20">
+                    <div class="flex-1">
+                        <div class="text-xs opacity-80"><i class="fa-solid fa-arrow-down"></i> Thu vào</div>
+                        <div class="font-bold text-lg" id="total-income">0 ₫</div>
+                    </div>
+                    <div class="flex-1 border-l border-white/20 pl-4">
+                        <div class="text-xs opacity-80"><i class="fa-solid fa-arrow-up"></i> Chi ra</div>
+                        <div class="font-bold text-lg" id="total-expense">0 ₫</div>
+                    </div>
+                </div>
+            </div>
+
+            <form onsubmit="handleAddTransaction(event)" class="bg-white p-4 rounded-xl shadow-sm border mb-6 transition-all focus-within:ring-2 ring-blue-100">
+                <div class="flex gap-2 mb-3">
+                    <select id="transType" onchange="updateCategories()" class="w-1/3 p-2 bg-slate-100 rounded-lg outline-none font-bold text-sm">
+                        <option value="expense">🔴 Chi tiêu</option>
+                        <option value="income">🟢 Thu nhập</option>
+                    </select>
+                    <select id="transCat" class="w-2/3 p-2 bg-slate-50 border rounded-lg outline-none text-sm">
+                        </select>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="number" id="transAmount" placeholder="0" class="col-span-1 p-2 border rounded-lg font-mono font-bold text-right outline-none focus:border-blue-500" required>
+                    <input type="text" id="transDesc" placeholder="Ghi chú (Tùy chọn)" class="col-span-2 p-2 border rounded-lg outline-none focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full mt-3 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 active:scale-95 transition-transform">
+                    <i class="fa-solid fa-plus mr-1"></i> Lưu giao dịch
+                </button>
+            </form>
+
+            <div class="flex justify-between items-end mb-3">
+                <h3 class="font-bold text-slate-700">Lịch sử giao dịch</h3>
+                <div class="relative">
+                    <input type="text" id="searchTrans" onkeyup="renderBudget()" placeholder="Tìm kiếm..." class="bg-white border rounded-full px-3 py-1 text-sm outline-none focus:border-blue-500 w-32 focus:w-48 transition-all">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1.5 text-slate-400 text-xs"></i>
+                </div>
+            </div>
+            <div id="transaction-list" class="space-y-3 pb-20">
+                </div>
+        </div>
+    </main>
+
+    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t flex justify-around p-3 z-50">
+        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="dashboard"><i class="fa-solid fa-chart-pie text-xl mb-1"></i>Home</button>
+        <button onclick="switchTab('debts')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="debts"><i class="fa-solid fa-credit-card text-xl mb-1"></i>Nợ</button>
+        <button onclick="switchTab('budget')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="budget"><i class="fa-solid fa-wallet text-xl mb-1"></i>ThuChi</button>
+        <button onclick="switchTab('account')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="account"><i class="fa-solid fa-user-gear text-xl mb-1"></i>Account</button>
+    </nav>
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[70] flex flex-col gap-2 pointer-events-none"></div>
+
+    <div id="setup-wizard" class="hidden fixed inset-0 bg-blue-600 z-[110] flex flex-col items-center justify-center p-6 text-white transition-opacity">
+        <div class="max-w-md w-full text-center">
+            <div class="text-5xl mb-4"><i class="fa-solid fa-rocket"></i></div>
+            <h1 class="text-3xl font-bold mb-2">Xin chào!</h1>
+            <p class="mb-8 opacity-90">Hãy thiết lập thông số ban đầu để bắt đầu hành trình quản lý tài chính.</p>
+            
+            <div class="bg-white text-slate-800 p-6 rounded-2xl shadow-xl text-left space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-500 mb-1">Tiền đang có (Tất cả các ví)</label>
+                    <input type="number" id="initBalance" placeholder="VD: 5000000" class="w-full border-2 border-blue-100 p-3 rounded-xl text-xl font-bold text-blue-600 outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-500 mb-1">Đặt mã PIN bảo mật (4 số)</label>
+                    <input type="number" id="initPin" placeholder="VD: 1234" class="w-full border p-3 rounded-xl text-center tracking-widest text-lg outline-none focus:border-blue-500">
+                    <p class="text-xs text-slate-400 mt-1">* Để trống nếu không muốn đặt PIN</p>
+                </div>
+                <button onclick="finishSetup()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
+                    Bắt đầu ngay <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pin-lock" class="hidden fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center p-4 text-white">
+        <div class="mb-6 text-4xl"><i class="fa-solid fa-shield-cat"></i></div>
+        <h2 class="text-xl font-bold mb-4">Nhập mã PIN để truy cập</h2>
+        <input type="password" id="pinInput" class="bg-slate-800 border border-slate-700 p-3 rounded-xl text-center text-2xl tracking-[0.5em] w-48 outline-none focus:border-blue-500 mb-4" maxlength="4" placeholder="••••">
+        <button onclick="unlockApp()" class="bg-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-500">Mở khóa</button>
+        <p id="pin-msg" class="text-red-400 mt-4 text-sm"></p>
+    </div>
+
+    <div id="custom-dialog" class="hidden fixed inset-0 bg-slate-900/60 z-[90] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 p-6 text-center">
+            <div class="mb-4 text-4xl text-blue-500" id="dialog-icon"><i class="fa-solid fa-circle-question"></i></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2" id="dialog-title">Xác nhận</h3>
+            <p class="text-slate-500 text-sm mb-4" id="dialog-msg">Bạn có chắc chắn muốn thực hiện?</p>
+            <input type="number" id="dialog-input" class="hidden w-full p-3 border rounded-lg mb-6 text-center font-bold text-xl outline-none focus:border-blue-500" placeholder="Nhập số tiền...">
+            <div class="flex gap-3 justify-center" id="dialog-actions">
+                </div>
+        </div>
+    </div>
+
+    <div id="report-modal" class="hidden fixed inset-0 bg-slate-900/80 z-[80] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl my-auto">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50 sticky top-0">
+                <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-chart-pie text-blue-600"></i> Báo cáo Chi tiết</h3>
+                <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="w-8 h-8 rounded-full hover:bg-slate-200 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <select id="reportMonth" onchange="renderReportDetail()" class="p-2 border rounded-lg font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100"></select>
+                    <div class="text-right">
+                        <div class="text-xs text-slate-500">Dư cuối tháng</div>
+                        <div class="text-xl font-bold text-green-600" id="report-savings">0 ₫</div>
+                    </div>
+                </div>
+                
+                <h4 class="font-bold text-xs text-slate-400 uppercase mb-3">Top Chi Tiêu</h4>
+                <div id="report-breakdown" class="space-y-3 mb-6"></div> <h4 class="font-bold text-xs text-slate-400 uppercase mb-3">Dòng tiền</h4>
+                <div class="h-4 bg-slate-100 rounded-full overflow-hidden flex mb-2" id="report-bar"></div>
+                <div class="flex justify-between text-sm font-medium text-slate-600">
+                    <span id="report-in" class="text-green-600">Thu: 0</span>
+                    <span id="report-out" class="text-red-600">Chi: 0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-100">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800" id="modal-title">Thêm khoản vay mới</h3>
+                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleSaveLoan(event)" class="p-5 space-y-3">
+                <input type="hidden" id="loanId">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                         <label class="block text-xs font-bold text-slate-500 mb-1">Tên khoản vay / Ngân hàng</label>
+                         <input type="text" id="loanName" placeholder="VD: Home Credit..." class="w-full border p-2 rounded-lg outline-none font-bold" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Mã Hợp Đồng</label>
+                        <input type="text" id="loanCode" placeholder="VD: 2025-XC99" class="w-full border p-2 rounded-lg outline-none font-mono text-sm">
+                    </div>
+                    <div>
+                         <label class="block text-xs font-bold text-slate-500 mb-1">Ngày Giải Ngân</label>
+                         <input type="date" id="loanStart" class="w-full border p-2 rounded-lg outline-none text-sm" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Ngày trả nợ (Hàng tháng)</label>
+                         <input type="number" id="loanDay" placeholder="VD: 5" min="1" max="31" class="w-full border p-2 rounded-lg outline-none" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Số tiền vay (Gốc)</label>
+                        <input type="number" id="loanAmount" placeholder="0" class="w-full border border-slate-300 p-3 rounded-lg focus:border-blue-500 outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Lãi suất (%/Năm)</label>
+                        <input type="number" id="loanRate" placeholder="VD: 12" step="0.01" class="w-full border border-slate-300 p-3 rounded-lg focus:border-blue-500 outline-none" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Kỳ hạn (Tháng)</label>
+                    <input type="number" id="loanTerm" placeholder="VD: 12, 24..." class="w-full border border-slate-300 p-3 rounded-lg focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/30 mt-2">Lưu Khoản Vay</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
