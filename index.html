@@ -5,15 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MyFinances - Quản lý nợ</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { primary: '#2563eb', danger: '#dc2626' }
-                }
-            }
-        }
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -21,7 +12,6 @@
         .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -30,33 +20,6 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden">
-
-    <div id="auth-modal" class="fixed inset-0 bg-slate-900 z-[200] flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-            <h1 class="text-3xl font-bold text-center text-blue-600 mb-2"><i class="fa-solid fa-sack-dollar"></i> MyFinances</h1>
-            <p class="text-slate-500 text-sm text-center mb-6">Đăng nhập để đồng bộ dữ liệu</p>
-            
-            <div id="auth-error" class="hidden bg-red-50 text-red-500 text-sm p-3 rounded-lg mb-4 text-center"></div>
-
-            <form onsubmit="handleAuth(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">Email</label>
-                    <input type="email" id="auth-email" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="name@example.com" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">Mật khẩu</label>
-                    <input type="password" id="auth-pass" autocomplete="current-password" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500" placeholder="••••••••" required>
-                </div>
-                <button type="submit" id="btn-auth" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-95">
-                    Đăng nhập
-                </button>
-            </form>
-
-            <div class="mt-6 text-center text-sm">
-                <button onclick="toggleAuthMode()" id="link-auth" class="text-blue-600 font-bold hover:underline">Chưa có tài khoản? Đăng ký</button>
-            </div>
-        </div>
-    </div>
 
     <div id="auth-modal" class="fixed inset-0 bg-slate-900 z-[200] flex items-center justify-center p-4 transition-opacity duration-300">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
@@ -122,7 +85,7 @@
                     <div id="weekly-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
                 <div class="text-xs text-slate-400 mt-1">
-                    <i class="fa-solid fa-circle-info mr-1"></i> Ưu tiên giữ "Tiền sống" cho 7 ngày tới [cite: 21]
+                    <i class="fa-solid fa-circle-info mr-1"></i> Ưu tiên giữ "Tiền sống" cho 7 ngày tới
                 </div>
             </div>
             
@@ -155,6 +118,7 @@
             </div>
 
         </div>
+
         <div id="debts" class="tab-content">
             <h2 class="text-2xl font-bold mb-4">Quản lý Khoản vay</h2>
             
@@ -180,6 +144,7 @@
                 <div class="text-center text-slate-400 py-10">Đang tải dữ liệu...</div>
             </div>
         </div>
+
         <div id="goals" class="tab-content">
             <h2 class="text-2xl font-bold mb-4">Mục tiêu Tiết kiệm</h2>
             <form onsubmit="handleAddGoal(event)" class="flex gap-2 mb-6">
@@ -187,8 +152,7 @@
                 <input type="number" id="goalTarget" placeholder="Cần có (VNĐ)" class="w-1/3 p-3 border rounded-xl outline-none font-bold text-right" required>
                 <button type="submit" class="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700"><i class="fa-solid fa-plus"></i></button>
             </form>
-            <div id="goal-list" class="grid md:grid-cols-2 gap-4 pb-20">
-                </div>
+            <div id="goal-list" class="grid md:grid-cols-2 gap-4 pb-20"></div>
         </div>
 
         <div id="account" class="tab-content">

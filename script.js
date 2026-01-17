@@ -1,6 +1,6 @@
-// PATCH_v2 - FINAL CLEAN VERSION
+// FINAL CLEAN VERSION - MyFinances
 // --- CONFIG ---
-const API_URL = "https://my-finances-backend.trantien.workers.dev/api"; // Link Worker chính thức
+const API_URL = "https://my-finances-backend.trantien.workers.dev/api"; // Link Worker Cloudflare
 let AUTH_TOKEN = localStorage.getItem('myfinances_token');
 
 const APP_DATA = { loans: [], transactions: [], goals: [] };
@@ -10,59 +10,81 @@ let isLoginMode = true;
 
 function toggleAuthMode() {
     isLoginMode = !isLoginMode;
-    document.getElementById('btn-auth').innerText = isLoginMode ? "Đăng nhập" : "Đăng ký";
-    document.getElementById('link-auth').innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký" : "Quay lại Đăng nhập";
-    document.getElementById('auth-error').classList.add('hidden');
+    const btn = document.getElementById('btn-auth');
+    const link = document.getElementById('link-auth');
+    
+    // Cập nhật text UI
+    if (btn) btn.innerText = isLoginMode ? "Đăng nhập" : "Đăng ký";
+    if (link) link.innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký" : "Quay lại Đăng nhập";
+    
+    // Ẩn thông báo lỗi nếu có
+    const err = document.getElementById('auth-error');
+    if (err) err.classList.add('hidden');
+    
+    // Log để debug
+    console.log("🔄 Toggle Mode:", isLoginMode ? "LOGIN" : "REGISTER");
 }
 
-// PATCH_v2
 async function handleAuth(e) {
     e.preventDefault();
-    // Fix: Lấy input ngay trong form đang submit để tránh nhầm ID trùng lặp nơi khác
     const form = e.target;
-    const emailInput = form.querySelector('#auth-email') || document.getElementById('auth-email');
-    const passInput = form.querySelector('#auth-pass') || document.getElementById('auth-pass');
+    // Tìm input chính xác trong form này
+    const emailInp = form.querySelector('#auth-email') || document.getElementById('auth-email');
+    const passInp = form.querySelector('#auth-pass') || document.getElementById('auth-pass');
     
-    const email = emailInput.value.trim();
-    const pass = passInput.value.trim();
-
-    console.log("📤 Đang gửi:", { email, password: pass, mode: isLoginMode ? 'LOGIN' : 'REGISTER' });
-
+    const email = emailInp.value.trim();
+    const password = passInp.value.trim();
+    
     const btn = document.getElementById('btn-auth');
     const errBox = document.getElementById('auth-error');
 
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+    if (!email || !password) {
+        showToast("Vui lòng điền đủ thông tin!", "error");
+        return;
+    }
+
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
     errBox.classList.add('hidden');
 
     try {
-        if(!email || !pass) throw new Error("Vui lòng điền đủ Email và Mật khẩu!");
-
+        console.log("📤 Sending:", { email, mode: isLoginMode ? 'LOGIN' : 'REGISTER' });
+        
         const res = await fetch(API_URL + (isLoginMode ? '/login' : '/register'), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         });
         
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `Lỗi server (${res.status})`);
-        if (!data.success) throw new Error(data.error || 'Lỗi kết nối');
+        
+        if (!res.ok) {
+            throw new Error(data.error || `Lỗi server (${res.status})`);
+        }
 
         if (isLoginMode) {
+            // Đăng nhập thành công
             localStorage.setItem('myfinances_token', data.token);
             AUTH_TOKEN = data.token;
             document.getElementById('auth-modal').classList.add('hidden');
             showToast(`Xin chào ${data.user.email}!`, 'success');
             initApp();
         } else {
+            // Đăng ký thành công -> Chuyển qua login
             showToast('Đăng ký thành công! Hãy đăng nhập.', 'success');
             toggleAuthMode();
+            // Tự điền lại email cho tiện
+            if(emailInp) emailInp.value = email;
+            if(passInp) passInp.value = '';
         }
-    // PATCH_v2
-    } catch (err) { 
+    } catch (err) {
         errBox.innerText = err.message; 
         errBox.classList.remove('hidden');
-        showToast(err.message, 'error'); // <--- THÊM DÒNG NÀY ĐỂ HIỆN THÔNG BÁO
+        showToast(err.message, 'error'); // Hiện thông báo đỏ
+    } finally { 
+        btn.disabled = false; 
+        btn.innerText = isLoginMode ? "Đăng nhập" : "Đăng ký"; 
     }
-    finally { btn.disabled = false; btn.innerText = isLoginMode ? "Đăng nhập" : "Đăng ký"; }
 }
 
 async function saveData() {
@@ -118,7 +140,7 @@ async function initApp() {
             showToast('Đã đồng bộ dữ liệu!', 'success');
         }
     } catch (e) {
-        if (e.status === 401) logout(); // Token hết hạn thì đá ra
+        if (e.status === 401) logout(); 
     }
 
     if (!APP_DATA.transactions.length && !localStorage.getItem('myfinances_setup')) {
@@ -128,7 +150,9 @@ async function initApp() {
 }
 
 function finishSetup() {
-    const bal = Number(document.getElementById('initBalance').value);
+    const inp = document.getElementById('initBalance');
+    const bal = inp ? Number(inp.value) : 0; // Fix lỗi null
+    
     if (bal > 0) {
         APP_DATA.transactions.push({
             id: Date.now(), type: 'income', amount: bal,
@@ -243,7 +267,7 @@ function deleteLoan(id) {
     });
 }
 
-// --- RENDER FUNCTIONS (Giữ nguyên logic cũ) ---
+// --- RENDER FUNCTIONS ---
 function renderGoals() {
     const list = document.getElementById('goal-list'); if (!list) return;
     list.innerHTML = APP_DATA.goals.map(g => {
@@ -360,17 +384,11 @@ function showDialog(type, msg, callback, defaultVal = '') {
 }
 function closeDialog() { document.getElementById('custom-dialog').classList.add('hidden'); }
 function formatMoney(num) { return num.toLocaleString('vi-VN') + ' ₫'; }
-// PATCH_v2
 function showToast(msg, type = 'info') {
     const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-slate-800');
     const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
-    
-    const box = document.createElement('div'); 
-    box.className = `p-3 rounded-lg shadow-lg text-white font-medium text-sm animate-bounce ${color}`;
-    box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`; 
-    
-    const container = document.getElementById('toast-container');
-    if(container) { container.appendChild(box); setTimeout(() => box.remove(), 3000); }
+    const box = document.createElement('div'); box.className = `p-3 rounded-lg shadow-lg text-white font-medium text-sm animate-bounce ${color}`;
+    box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`; document.getElementById('toast-container').appendChild(box); setTimeout(() => box.remove(), 3000);
 }
 function openModal(editId = null) {
     const modal = document.getElementById('modal'); modal.classList.remove('hidden');
