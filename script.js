@@ -87,18 +87,34 @@ async function handleAuth(e) {
     }
 }
 
+// PATCH_v2
+function mergeData(cloudData) {
+    if (!cloudData) return;
+    const mergeArr = (local, cloud) => {
+        const map = new Map();
+        (cloud || []).forEach(i => map.set(i.id, i));
+        (local || []).forEach(i => map.set(i.id, i)); // Local ưu tiên
+        return Array.from(map.values());
+    };
+    APP_DATA.transactions = mergeArr(APP_DATA.transactions, cloudData.transactions);
+    APP_DATA.loans = mergeArr(APP_DATA.loans, cloudData.loans);
+    APP_DATA.goals = mergeArr(APP_DATA.goals, cloudData.goals);
+}
+
 async function saveData() {
     localStorage.setItem('myfinances_data', JSON.stringify(APP_DATA));
-    if (AUTH_TOKEN) {
-        try {
-            await fetch(API_URL + '/data', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
-                body: JSON.stringify({ data: APP_DATA })
-            });
-            console.log("Cloud saved ✅");
-            updateSyncStatus();
-        } catch (e) { console.warn("Cloud save failed ❌"); }
-    }
+    if (!AUTH_TOKEN) return;
+    try {
+        const check = await fetch(API_URL + '/data', { headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN } });
+        const json = await check.json();
+        if (json.success && json.data) mergeData(json.data); // Pull & Merge
+
+        await fetch(API_URL + '/data', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH_TOKEN },
+            body: JSON.stringify({ data: APP_DATA })
+        });
+        console.log("Sync Smart ✅"); updateSyncStatus();
+    } catch (e) { console.warn("Sync failed ❌", e); }
 }
 
 function updateSyncStatus() {
@@ -159,35 +175,42 @@ function resetApp() {
 }
 
 // --- CORE APP ---
+// PATCH_v2
 async function initApp() {
     if (!AUTH_TOKEN) return document.getElementById('auth-modal').classList.remove('hidden');
     document.getElementById('auth-modal').classList.add('hidden');
 
-    try { // Load Local
+    // 1. Load Local FIRST (Fast UI)
+    try {
         const saved = localStorage.getItem('myfinances_data');
         if (saved) Object.assign(APP_DATA, JSON.parse(saved));
     } catch (e) {}
+    renderLoans(); renderBudget(); updateDashboard(); switchTab('dashboard');
 
-    renderLoans(); renderBudget(); updateDashboard();
-
-    try { // Load Cloud
+    // 2. Sync Cloud (Background)
+    try {
         const res = await fetch(API_URL + '/data', { headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN } });
         const json = await res.json();
-        if (json.success && json.data) {
-            Object.assign(APP_DATA, json.data);
-            localStorage.setItem('myfinances_data', JSON.stringify(APP_DATA));
-            renderLoans(); renderBudget(); updateDashboard();
-            updateSyncStatus();
-            showToast('Đã đồng bộ dữ liệu!', 'success');
-        }
-    } catch (e) {
-        if (e.status === 401) logout(); 
-    }
+        
+        const localTime = localStorage.getItem('myfinances_last_sync') || '0';
+        const cloudTime = json.version || '0';
 
-    if (!APP_DATA.transactions.length && !localStorage.getItem('myfinances_setup')) {
-        document.getElementById('setup-wizard').classList.remove('hidden');
-    }
-    switchTab('dashboard');
+        if (json.success && json.data) {
+            if (cloudTime > localTime) {
+                // Cloud mới hơn -> Update Local
+                Object.assign(APP_DATA, json.data);
+                localStorage.setItem('myfinances_data', JSON.stringify(APP_DATA));
+                localStorage.setItem('myfinances_last_sync', cloudTime);
+                renderLoans(); renderBudget(); updateDashboard();
+                showToast('⬇️ Đã tải dữ liệu mới từ Cloud', 'success');
+            } else {
+                console.log("✅ Local is up-to-date");
+            }
+            updateSyncStatus();
+        }
+    } catch (e) { console.warn("Offline mode or Sync error", e); if (e.status === 401) logout(); }
+
+    if (!APP_DATA.transactions.length && !localStorage.getItem('myfinances_setup')) document.getElementById('setup-wizard').classList.remove('hidden');
 }
 
 function finishSetup() {
@@ -225,10 +248,79 @@ const CATS = {
     ]
 };
 
+// PATCH_v2
+// PATCH_v2
+function setType(type) {
+    document.getElementById('transType').value = type;
+    const isExp = type === 'expense';
+    document.getElementById('btn-expense').className = `flex-1 py-2 rounded-lg font-bold text-sm transition-all shadow ${isExp ? 'bg-white text-red-600' : 'text-slate-500 hover:bg-white/50'}`;
+    document.getElementById('btn-income').className = `flex-1 py-2 rounded-lg font-bold text-sm transition-all shadow ${!isExp ? 'bg-white text-green-600' : 'text-slate-500 hover:bg-white/50'}`;
+    updateCategories();
+}
+
+function addQuick(amount) {
+    const el = document.getElementById('transAmount');
+    let current = Number(el.value.replace(/\D/g, '')) || 0;
+    el.value = (current + amount).toLocaleString('vi-VN');
+    onAmountInput(el);
+}
+
+function onAmountInput(el) {
+    let val = Number(el.value.replace(/\D/g, ''));
+    el.value = val ? val.toLocaleString('vi-VN') : '';
+    const btn = document.getElementById('btn-save');
+    btn.disabled = !val;
+    if (val) {
+        btn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+        btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
+    } else {
+        btn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+        btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
+    }
+}
+
 function updateCategories() {
     const type = document.getElementById('transType').value;
-    const sel = document.getElementById('transCat');
-    sel.innerHTML = CATS[type].map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    const grid = document.getElementById('cat-grid');
+    grid.innerHTML = CATS[type].map(c => 
+        `<div onclick="selectCat('${c.id}')" id="cat-${c.id}" class="cat-item cursor-pointer p-2 rounded-xl border text-center hover:bg-blue-50 transition-all select-none active:scale-95">
+            <div class="text-2xl mb-1">${c.icon}</div><div class="text-[10px] font-bold text-slate-600 truncate">${c.name}</div>
+        </div>`
+    ).join('');
+    // Auto select first but don't focus description yet
+    if(CATS[type].length > 0) selectCat(CATS[type][0].id);
+}
+
+// PATCH_v2
+const PLACEHOLDERS = {
+    'live': 'Cơm trưa, cafe, trà sữa...', 'move': 'Đổ xăng, gửi xe, Grab...', 'bill': 'Điện, nước, net...', 
+    'debt': 'Trả nợ ai, khoản nào...', 'salary': 'Lương tháng 10, thưởng...', 'bonus': 'Lì xì, trúng số...'
+};
+
+function selectCat(id) {
+    document.getElementById('transCat').value = id;
+    document.querySelectorAll('.cat-item').forEach(el => {
+        el.classList.remove('bg-blue-100', 'border-blue-500', 'ring-1', 'ring-blue-500');
+        el.classList.add('border-slate-100');
+    });
+    const el = document.getElementById(`cat-${id}`);
+    if(el) {
+        el.classList.remove('border-slate-100');
+        el.classList.add('bg-blue-100', 'border-blue-500', 'ring-1', 'ring-blue-500');
+    }
+    document.getElementById('transDesc').placeholder = PLACEHOLDERS[id] || 'Ghi chú thêm...';
+}
+
+// Gọi hàm này trong initApp() và switchTab()
+function initBudgetForm() {
+    document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
+    setType('expense');
+    onAmountInput(document.getElementById('transAmount')); // Reset button state
+}
+
+function formatInputMoney(el) {
+    let val = el.value.replace(/\D/g, '');
+    el.value = val ? parseInt(val).toLocaleString('vi-VN') : '';
 }
 
 function handleAddTransaction(e) {
@@ -236,13 +328,17 @@ function handleAddTransaction(e) {
     const type = document.getElementById('transType').value;
     const catId = document.getElementById('transCat').value;
     const cat = CATS[type].find(c => c.id === catId) || CATS[type][0];
-    const amount = Number(document.getElementById('transAmount').value);
+    const amountRaw = document.getElementById('transAmount').value.replace(/\./g, ''); // Remove dots
+    const amount = Number(amountRaw);
+
+    if (!amount) return showToast('Vui lòng nhập số tiền', 'error');
 
     APP_DATA.transactions.unshift({
         id: Date.now(), type, amount, catId: cat.id, catName: cat.name, icon: cat.icon,
         desc: document.getElementById('transDesc').value || cat.name, date: new Date().toISOString()
     });
     saveData(); e.target.reset(); updateCategories(); renderBudget(); updateDashboard(); showToast(`Đã thêm: ${formatMoney(amount)}`, 'success');
+    document.getElementById('transAmount').focus(); // Keep focus for fast input
 }
 
 function deleteTrans(id) {
@@ -271,13 +367,44 @@ function deleteGoal(id) {
     if (confirm('Xóa mục tiêu?')) { APP_DATA.goals = APP_DATA.goals.filter(g => g.id !== id); saveData(); renderGoals(); }
 }
 
+// PATCH_v2
+function initLoanForm() {
+    const sel = document.getElementById('loanDay');
+    if(sel.children.length === 0) {
+        sel.innerHTML = Array.from({length: 31}, (_, i) => `<option value="${i+1}">Ngày ${i+1}</option>`).join('');
+    }
+}
+
+function calcLoanPreview() {
+    const amtEl = document.getElementById('loanAmount');
+    let rawAmt = amtEl.value.replace(/\D/g, '');
+    amtEl.value = rawAmt ? parseInt(rawAmt).toLocaleString('vi-VN') : '';
+
+    const P = Number(rawAmt);
+    const r = (Number(document.getElementById('loanRate').value) || 0) / 100 / 12;
+    const n = Number(document.getElementById('loanTerm').value);
+    
+    const prev = document.getElementById('loan-preview');
+    if (P > 0 && n > 0) {
+        prev.classList.remove('hidden');
+        const emi = (r === 0) ? (P / n) : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+        const totalInterest = (emi * n) - P;
+        document.getElementById('prev-emi').innerText = formatMoney(Math.round(emi)) + '/tháng';
+        document.getElementById('prev-interest').innerText = formatMoney(Math.max(0, Math.round(totalInterest)));
+    } else {
+        prev.classList.add('hidden');
+    }
+}
+
 function handleSaveLoan(e) {
     e.preventDefault();
     const id = document.getElementById('loanId').value;
     const loanData = {
         name: document.getElementById('loanName').value, code: document.getElementById('loanCode').value,
-        startDate: document.getElementById('loanStart').value, day: Number(document.getElementById('loanDay').value),
-        amount: Number(document.getElementById('loanAmount').value), rate: Number(document.getElementById('loanRate').value),
+        startDate: document.getElementById('loanStart').value || new Date().toISOString().split('T')[0],
+        day: Number(document.getElementById('loanDay').value),
+        amount: Number(document.getElementById('loanAmount').value.replace(/\./g, '')),
+        rate: Number(document.getElementById('loanRate').value) || 0,
         term: Number(document.getElementById('loanTerm').value),
     };
     if (id) {
@@ -286,8 +413,21 @@ function handleSaveLoan(e) {
     } else {
         APP_DATA.loans.push({ id: Date.now(), paid: 0, date: new Date().toISOString(), ...loanData });
     }
-    saveData(); closeModal(); renderLoans(); showToast('Đã lưu khoản vay');
+    saveData(); closeModal(); renderLoans(); showToast('Đã lưu khoản vay', 'success');
 }
+
+// Update openModal to trigger init
+const _oldOpen = openModal;
+openModal = (editId) => {
+    initLoanForm(); _oldOpen(editId);
+    if(editId) {
+        const l = APP_DATA.loans.find(i => i.id === editId);
+        document.getElementById('loanAmount').value = l.amount.toLocaleString('vi-VN');
+    } else {
+        document.getElementById('loanAmount').value = '';
+    }
+    calcLoanPreview();
+};
 
 function payDebt(id, name, amount) {
     showDialog('confirm', `Trả ${formatMoney(amount)} cho "${name}"?`, () => {
@@ -306,6 +446,27 @@ function deleteLoan(id) {
         APP_DATA.loans = APP_DATA.loans.filter(l => l.id !== id);
         saveData(); renderLoans(); showToast('Đã xóa');
     });
+}
+
+// PATCH_v2
+function handleAdjustBalance() {
+    const realBal = Number(document.getElementById('realBalance').value);
+    if (!realBal && realBal !== 0) return showToast('Nhập số dư thực tế!', 'error');
+    
+    const curBal = getSummary().balance;
+    const diff = realBal - curBal;
+    
+    if (diff === 0) return showToast('Số dư đã khớp!');
+    
+    APP_DATA.transactions.unshift({
+        id: Date.now(), type: diff > 0 ? 'income' : 'expense',
+        amount: Math.abs(diff), catId: 'other', catName: 'Điều chỉnh số dư',
+        icon: '⚖️', desc: 'Cập nhật số dư thực tế', date: new Date().toISOString()
+    });
+    
+    saveData(); renderBudget(); updateDashboard();
+    document.getElementById('realBalance').value = '';
+    showToast(`Đã điều chỉnh: ${formatMoney(diff)}`, 'success');
 }
 
 // --- RENDER FUNCTIONS ---
@@ -360,51 +521,145 @@ function getSummary() {
     return { debt, monthlyPay, income, expense, balance: income - expense };
 }
 
+// PATCH_v2
 let chartAsset = null, chartFlow = null;
 function updateDashboard() {
     renderGoals(); const data = getSummary();
-    const now = new Date(); const day = now.getDay() || 7;
-    const startOfWeek = new Date(now); startOfWeek.setHours(0, 0, 0, 0); startOfWeek.setDate(now.getDate() - day + 1);
-    const weeklySpent = APP_DATA.transactions.filter(t => t.type === 'expense' && new Date(t.date) >= startOfWeek).reduce((sum, t) => sum + t.amount, 0);
+    const BUDGET = 1500000;
+    const now = new Date(); const dayOfWeek = now.getDay() || 7; // 1 (Mon) -> 7 (Sun)
+    const daysLeft = 8 - dayOfWeek;
+    const startOfWeek = new Date(now); startOfWeek.setHours(0, 0, 0, 0); startOfWeek.setDate(now.getDate() - dayOfWeek + 1);
     
-    if (document.getElementById('wallet-balance')) {
-        document.getElementById('wallet-balance').innerHTML = `${formatMoney(data.balance)}<div class="text-xs font-normal opacity-70 mt-1">Ví Sống: ${formatMoney(data.balance * 0.5)} | Nợ: ${formatMoney(data.balance * 0.3)}</div>`;
-        const expEl = document.getElementById('total-expense');
-        if (expEl) expEl.parentElement.innerHTML = `<div class="text-xs opacity-80"><i class="fa-solid fa-calendar-week"></i> Chi tuần này</div><div class="font-bold text-lg text-orange-200">${formatMoney(weeklySpent)}</div>`;
+    // 1. Weekly Logic
+    const weeklyTrans = APP_DATA.transactions.filter(t => t.type === 'expense' && new Date(t.date) >= startOfWeek);
+    const weeklySpent = weeklyTrans.reduce((sum, t) => sum + t.amount, 0);
+    const remaining = BUDGET - weeklySpent;
+    const dailyAvg = remaining > 0 ? Math.round(remaining / daysLeft) : 0;
+    
+    const pct = Math.min(100, (weeklySpent / BUDGET) * 100);
+    if(document.getElementById('weekly-bar')) {
+        document.getElementById('weekly-spent').innerText = formatMoney(weeklySpent);
+        document.getElementById('weekly-remain').innerText = formatMoney(remaining);
+        document.getElementById('weekly-remain').className = `text-2xl font-bold ${remaining < 0 ? 'text-red-500' : 'text-blue-600'}`;
+        document.getElementById('daily-avg').innerText = remaining > 0 ? `TB: ${formatMoney(dailyAvg)}/ngày` : 'Hết ngân sách!';
         const bar = document.getElementById('weekly-bar');
-        if (bar) { const pct = Math.min(100, (weeklySpent / 1500000) * 100); bar.style.width = `${pct}%`; bar.className = `h-full transition-all duration-500 ${pct > 90 ? 'bg-red-500' : 'bg-blue-600'}`; }
+        bar.style.width = `${pct}%`;
+        bar.className = `h-2 rounded-full transition-all duration-500 ${pct > 90 ? 'bg-red-500' : 'bg-blue-600'}`;
     }
+
+    // 2. Insight & Header
+    const todaySpent = APP_DATA.transactions.filter(t => t.type === 'expense' && new Date(t.date).toDateString() === now.toDateString()).reduce((s, t) => s + t.amount, 0);
+    document.getElementById('daily-insight').innerText = todaySpent > 0 
+        ? `📉 Hôm nay bạn đã chi ${formatMoney(todaySpent)}` 
+        : '✨ Hôm nay chưa tiêu gì. Tuyệt vời!';
     
-    const ctx1 = document.getElementById('chartAssets'), ctx2 = document.getElementById('chartExpense');
-    if (chartAsset) chartAsset.destroy(); if (chartFlow) chartFlow.destroy();
-    if (ctx1) chartAsset = new Chart(ctx1, { type: 'bar', data: { labels: ['Ví', 'Nợ'], datasets: [{ label: 'VND', data: [data.balance, data.debt], backgroundColor: ['#3b82f6', '#ef4444'] }] }, options: { plugins: { legend: { display: false } } } });
-    if (ctx2) chartFlow = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Chi', 'Trả Nợ', 'Dư'], datasets: [{ data: [data.expense, Math.round(data.monthlyPay), Math.max(0, data.income - data.expense - data.monthlyPay)], backgroundColor: ['#f97316', '#ef4444', '#22c55e'] }] }, options: { cutout: '70%' } });
+    const topCat = Object.entries(weeklyTrans.reduce((acc, t) => { acc[t.catName] = (acc[t.catName]||0) + t.amount; return acc; }, {}))
+                         .sort((a,b) => b[1] - a[1])[0];
+    document.getElementById('health-msg').innerHTML = topCat 
+        ? `Tuần này chi nhiều nhất vào <b>${topCat[0]}</b> (${formatMoney(topCat[1])}). ${pct > 80 ? '⚠️ Sắp lố ngân sách!' : '✅ Vẫn trong tầm kiểm soát.'}`
+        : 'Chưa có đủ dữ liệu để phân tích chi tiêu tuần này.';
+
+    // 3. Charts Logic
+    // Asset vs Debt
+    const hasDebt = data.debt > 0;
+    document.getElementById('chart-asset-container').classList.toggle('hidden', !hasDebt);
+    document.getElementById('no-debt-view').classList.toggle('hidden', hasDebt);
+    if (!hasDebt) {
+        document.getElementById('dash-asset').innerText = formatMoney(data.balance);
+    } else {
+        const ctx1 = document.getElementById('chartAssets');
+        if (chartAsset) chartAsset.destroy();
+        if (ctx1) chartAsset = new Chart(ctx1, { type: 'bar', data: { labels: ['Tài sản', 'Nợ'], datasets: [{ label: 'VND', data: [data.balance, data.debt], backgroundColor: ['#3b82f6', '#ef4444'], borderRadius: 8 }] }, options: { plugins: { legend: { display: false } }, maintainAspectRatio: false } });
+    }
+
+    // Allocation
+    const savings = Math.max(0, data.income - data.expense - data.monthlyPay);
+    const totalFlow = data.expense + data.monthlyPay + savings;
+    const pExp = totalFlow ? Math.round(data.expense/totalFlow*100) : 0;
+    const pDebt = totalFlow ? Math.round(data.monthlyPay/totalFlow*100) : 0;
+    const pSave = totalFlow ? Math.round(savings/totalFlow*100) : 0;
+
+    const ctx2 = document.getElementById('chartExpense');
+    if (chartFlow) chartFlow.destroy();
+    if (ctx2) chartFlow = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Chi', 'Nợ', 'Dư'], datasets: [{ data: [data.expense, Math.round(data.monthlyPay), savings], backgroundColor: ['#f97316', '#ef4444', '#22c55e'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { legend: { display: false } }, maintainAspectRatio: false } });
+    
+    document.getElementById('expense-legend').innerHTML = `
+        <div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Chi tiêu</div><div class="font-bold">${formatMoney(data.expense)} (${pExp}%)</div></div>
+        <div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500"></span> Trả nợ</div><div class="font-bold">${formatMoney(Math.round(data.monthlyPay))} (${pDebt}%)</div></div>
+        <div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span> Dư ra</div><div class="font-bold">${formatMoney(savings)} (${pSave}%)</div></div>
+    `;
+    
+    if(document.getElementById('wallet-balance')) document.getElementById('wallet-balance').innerText = formatMoney(data.balance);
+    if(document.getElementById('total-income')) document.getElementById('total-income').innerText = formatMoney(data.income);
+    if(document.getElementById('total-expense')) document.getElementById('total-expense').innerText = formatMoney(data.expense);
 }
 
 // --- UTILS ---
 let debtStrategy = 'snowball';
 function toggleStrategy() { debtStrategy = debtStrategy === 'snowball' ? 'avalanche' : 'snowball'; renderLoans(); showToast(`Đổi: ${debtStrategy}`); }
+// PATCH_v2
 function renderLoans() {
     const list = document.getElementById('debt-list');
-    let totalRemaining = 0, totalMonthly = 0;
-    const loans = [...APP_DATA.loans].sort((a, b) => debtStrategy === 'snowball' ? (a.amount - (a.paid||0)) - (b.amount - (b.paid||0)) : b.rate - a.rate);
-    const header = `<div class="flex justify-between items-center mb-4 bg-blue-50 p-3 rounded-lg"><div class="text-sm font-bold text-blue-800">${debtStrategy === 'snowball' ? 'Snowball' : 'Avalanche'}</div><button onclick="toggleStrategy()" class="text-xs border border-blue-200 px-2 py-1 rounded bg-white text-blue-600">Đổi</button></div>`;
-    list.innerHTML = header + (loans.map(loan => {
+    const empty = document.getElementById('debt-empty');
+    const stratBox = document.getElementById('debt-strategy-box');
+    
+    if (APP_DATA.loans.length === 0) {
+        list.innerHTML = ''; list.classList.add('hidden');
+        empty.classList.remove('hidden'); stratBox.classList.add('hidden');
+        document.getElementById('total-debt').innerText = '0 ₫';
+        document.getElementById('monthly-pay').innerText = '0 ₫';
+        document.getElementById('next-due-date').innerText = '--/--';
+        return;
+    }
+
+    list.classList.remove('hidden'); empty.classList.add('hidden'); stratBox.classList.remove('hidden');
+    document.getElementById('strategy-name').innerText = debtStrategy === 'snowball' ? 'Snowball (Trả khoản nhỏ trước)' : 'Avalanche (Trả lãi cao trước)';
+
+    let totalRemaining = 0, totalMonthly = 0, closestDate = null;
+    const today = new Date().getDate();
+
+    const loans = [...APP_DATA.loans].sort((a, b) => {
+        const remA = a.amount - (a.paid||0), remB = b.amount - (b.paid||0);
+        return debtStrategy === 'snowball' ? remA - remB : b.rate - a.rate;
+    });
+
+    list.innerHTML = loans.map(loan => {
         const r = loan.rate / 100 / 12, n = loan.term;
         const emi = (r === 0) ? (loan.amount / n) : (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
         const paid = loan.paid || 0, remaining = Math.max(0, loan.amount - paid);
-        totalRemaining += remaining; totalMonthly += emi;
+        totalRemaining += remaining; totalMonthly += remaining > 0 ? emi : 0;
+        
+        // Find next due date
+        if (remaining > 0) {
+            let d = loan.day; 
+            let nextD = d >= today ? d : d; // Logic đơn giản: hiển thị ngày Hàng tháng
+            if (!closestDate || (d >= today && d < closestDate)) closestDate = d;
+        }
+
         const pct = Math.min(100, Math.round((paid / loan.amount) * 100));
-        return `<div class="bg-white p-4 rounded-xl shadow-sm border ${remaining === 0 ? 'border-green-200 bg-green-50' : 'border-slate-100'} mb-3">
-            <div class="flex justify-between items-start mb-2"><div><div class="font-bold text-slate-800 text-lg ${remaining === 0 ? 'line-through opacity-50' : ''}">${loan.name}</div><div class="text-xs text-slate-400 font-mono">HĐ: ${loan.code || '---'}</div></div>
-            <div class="flex gap-1"><button onclick="openModal(${loan.id})" class="text-slate-300 hover:text-blue-500 p-1.5"><i class="fa-solid fa-pen"></i></button><button onclick="deleteLoan(${loan.id})" class="text-slate-300 hover:text-red-500 p-1.5"><i class="fa-solid fa-trash"></i></button></div></div>
-            <div class="w-full bg-slate-100 rounded-full h-2.5 mb-2 overflow-hidden"><div class="bg-orange-500 h-2.5 rounded-full" style="width: ${pct}%"></div></div>
-            <div class="flex justify-between items-end"><div class="text-xs text-slate-500"><div>Gốc: ${formatMoney(loan.amount)}</div><div>Đã trả: ${formatMoney(paid)}</div></div>
-            <div class="text-right">${remaining > 0 ? `<button onclick="payDebt(${loan.id}, '${loan.name}', ${Math.round(emi)})" class="bg-blue-600 text-white text-sm font-bold px-3 py-1.5 rounded-lg">Trả ${formatMoney(Math.round(emi))}</button>` : '<span class="text-green-600 font-bold border border-green-600 px-2 py-1 rounded text-xs">ĐÃ TẤT TOÁN</span>'}</div></div>
+        return `<div class="bg-white p-4 rounded-xl shadow-sm border ${remaining === 0 ? 'border-green-200 bg-green-50' : 'border-slate-100 relative overflow-hidden'}">
+            ${remaining > 0 ? `<div class="absolute top-0 right-0 bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-bl-lg">Hạn: ngày ${loan.day}</div>` : ''}
+            <div class="flex justify-between items-start mb-3 mt-1">
+                <div><div class="font-bold text-slate-800 text-lg truncate w-48 ${remaining === 0 ? 'line-through opacity-50' : ''}">${loan.name}</div>
+                <div class="text-xs text-slate-400 font-mono">Lãi: ${loan.rate}% • ${remaining > 0 ? 'Còn ' + (loan.term) + ' kỳ' : 'Xong'}</div></div>
+                <button onclick="openModal(${loan.id})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+            </div>
+            
+            <div class="flex justify-between text-xs text-slate-500 mb-1"><span>Tiến độ trả nợ</span><span>${pct}%</span></div>
+            <div class="w-full bg-slate-100 rounded-full h-2 mb-4 overflow-hidden"><div class="${remaining === 0 ? 'bg-green-500' : 'bg-orange-500'} h-2 rounded-full transition-all" style="width: ${pct}%"></div></div>
+            
+            <div class="flex items-center justify-between border-t pt-3 border-dashed">
+                <div><div class="text-[10px] text-slate-400 uppercase">Còn lại</div><div class="font-bold text-red-600 text-base">${formatMoney(remaining)}</div></div>
+                ${remaining > 0 
+                    ? `<button onclick="payDebt(${loan.id}, '${loan.name}', ${Math.round(emi)})" class="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 active:scale-95">Trả ${formatMoney(Math.round(emi))}</button>` 
+                    : '<span class="text-green-600 font-bold border border-green-600 px-2 py-1 rounded text-xs">✅ ĐÃ TẤT TOÁN</span>'}
+            </div>
         </div>`;
-    }).join('') || '<div class="text-center text-slate-400 py-10">Chưa có khoản vay</div>');
-    if (document.getElementById('total-debt')) document.getElementById('total-debt').innerText = formatMoney(totalRemaining);
-    if (document.getElementById('monthly-pay')) document.getElementById('monthly-pay').innerText = formatMoney(Math.round(totalMonthly));
+    }).join('');
+
+    document.getElementById('total-debt').innerText = formatMoney(totalRemaining);
+    document.getElementById('monthly-pay').innerText = formatMoney(Math.round(totalMonthly));
+    document.getElementById('next-due-date').innerText = closestDate ? `Ngày ${closestDate}` : 'Không có';
 }
 
 function showDialog(type, msg, callback, defaultVal = '') {
@@ -444,10 +699,61 @@ function openModal(editId = null) {
     }
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+// PATCH_v2
+// PATCH_v2
 function switchTab(tabId) {
-    if (tabId === 'account') { const data = getSummary(); if (document.getElementById('acc-app-balance')) document.getElementById('acc-app-balance').innerText = formatMoney(data.balance); }
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); document.getElementById(tabId).classList.add('active');
-    document.querySelectorAll('.nav-btn').forEach(btn => { if (btn.dataset.target === tabId) { btn.classList.add('text-blue-600', 'bg-blue-50'); btn.classList.remove('text-slate-500'); } else { btn.classList.remove('text-blue-600', 'bg-blue-50'); btn.classList.add('text-slate-500'); } });
+    // 1. FAB Control
+    const fab = document.querySelector('button[onclick="openQuickAdd()"]');
+    if(fab) fab.classList.toggle('hidden', tabId === 'account');
+
+    // 2. Account Logic
+    if (tabId === 'account') { 
+        const data = getSummary(); 
+        if (document.getElementById('acc-app-balance')) document.getElementById('acc-app-balance').innerText = formatMoney(data.balance);
+        
+        // Populate User Info
+        try {
+            const token = localStorage.getItem('myfinances_token');
+            const payload = token ? JSON.parse(atob(token.split('.')[1])) : { email: 'Guest' };
+            document.getElementById('acc-email').innerText = payload.email;
+            document.getElementById('acc-tx-count').innerText = APP_DATA.transactions.length;
+        } catch(e) { document.getElementById('acc-email').innerText = 'Offline User'; }
+    }
+
+    // 3. UI Switch
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); 
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(btn => { 
+        if (btn.dataset.target === tabId) { btn.classList.add('text-blue-600', 'bg-blue-50'); btn.classList.remove('text-slate-500'); } 
+        else { btn.classList.remove('text-blue-600', 'bg-blue-50'); btn.classList.add('text-slate-500'); } 
+    });
+}
+
+function openQuickAdd() {
+    switchTab('budget');
+    setTimeout(() => {
+        document.getElementById('transAmount').focus();
+        window.scrollTo({ top: document.getElementById('transAmount').offsetTop - 100, behavior: 'smooth' });
+    }, 100);
+}
+
+function formatRealBal(el) {
+    let val = el.value.replace(/\D/g, '');
+    el.value = val ? parseInt(val).toLocaleString('vi-VN') : '';
+    const btn = document.getElementById('btn-sync-bal');
+    btn.disabled = !val;
+    btn.className = val ? "bg-blue-600 text-white px-5 rounded-xl font-bold transition-all shadow-lg hover:bg-blue-700 active:scale-95" 
+                        : "bg-slate-200 text-slate-400 px-5 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+}
+
+function resetApp() {
+    const code = prompt('⚠️ CẢNH BÁO MẤT DỮ LIỆU!\nĐể xác nhận xóa, vui lòng gõ chính xác cụm từ: XOA HET');
+    if (code === 'XOA HET') {
+        localStorage.clear();
+        location.reload();
+    } else if (code !== null) {
+        showToast('Mã xác nhận không đúng!', 'error');
+    }
 }
 function exportCSV() {
     let csv = "data:text/csv;charset=utf-8,\uFEFFNgay,Loai,SoTien,DanhMuc,MoTa\n";

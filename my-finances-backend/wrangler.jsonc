@@ -8,8 +8,12 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2025-09-27",
 	"compatibility_flags": [ "nodejs_compat" ],
+	// PATCH_v2
 	"observability": {
 		"enabled": true
+	},
+	"vars": {
+		"JWT_SECRET": "hãy-đổi-chuỗi-này-thành-secret-rất-dài-và-ngẫu-nhiên"
 	},
 	"d1_databases": [
 		{
