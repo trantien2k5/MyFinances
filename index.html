@@ -191,20 +191,22 @@
             </div>
 
             <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
-                <h3 class="font-bold text-slate-700 mb-4 flex items-center"><i class="fa-solid fa-shield-halved text-green-600 mr-2"></i> Dữ liệu & Bảo mật</h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="exportData()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
-                        <i class="fa-solid fa-download mr-2 text-blue-500"></i> Backup JSON
-                    </button>
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center"><i class="fa-solid fa-shield-halved text-green-600 mr-2"></i> Bảo mật & Dữ liệu</h3>
+                
+                <div class="mb-4 text-xs text-slate-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span id="sync-status">Đã đồng bộ với Cloud</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3">
                     <button onclick="exportCSV()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
-                        <i class="fa-solid fa-file-excel mr-2 text-green-500"></i> Xuất Excel
+                        <i class="fa-solid fa-file-excel mr-2 text-green-600"></i> Xuất Báo cáo Excel
                     </button>
-                    <label class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm cursor-pointer">
-                        <i class="fa-solid fa-upload mr-2 text-purple-500"></i> Khôi phục File
-                        <input type="file" onchange="importData(this)" class="hidden" accept=".json">
-                    </label>
-                    <button onclick="setPin()" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
-                        <i class="fa-solid fa-lock mr-2 text-orange-500"></i> Đổi mã PIN
+                    <button onclick="alert('Tính năng đang phát triển!')" class="flex items-center justify-center p-3 rounded-lg border hover:bg-slate-50 transition-colors text-slate-700 font-medium text-sm">
+                        <i class="fa-solid fa-key mr-2 text-orange-500"></i> Đổi mật khẩu
+                    </button>
+                    <button onclick="logout()" class="flex items-center justify-center p-3 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors font-bold text-sm">
+                        <i class="fa-solid fa-right-from-bracket mr-2"></i> Đăng xuất
                     </button>
                 </div>
             </div>

@@ -297,41 +297,25 @@ function exportCSV() {
     link.click();
 }
 
-function exportData() {
-    const dataStr = JSON.stringify(APP_DATA, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `MyFinances_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-function importData(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (data.loans && data.transactions) {
-                if (confirm('Dữ liệu hiện tại sẽ bị ghi đè. Tiếp tục?')) {
-                    Object.assign(APP_DATA, data);
-                    saveData();
-                    initApp(); // Reload UI
-                    alert('Khôi phục thành công!');
-                }
-            } else {
-                alert('File không hợp lệ!');
-            }
-        } catch (err) { alert('Lỗi đọc file!'); }
-    };
-    reader.readAsText(file);
-    input.value = ''; // Reset input
-}
-
 // PATCH_v2
+function logout() {
+    if (confirm('Bạn muốn đăng xuất?')) {
+        localStorage.removeItem('myfinances_token');
+        localStorage.removeItem('myfinances_data'); // Xóa data local để bảo mật
+        location.reload();
+    }
+}
+
+// Update Sync Status Helper
+function updateSyncStatus() {
+    const el = document.getElementById('sync-status');
+    if (el) {
+        const time = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+        el.innerText = `Đã đồng bộ lúc ${time}`;
+        el.parentElement.classList.remove('hidden');
+    }   
+}   
+
 // PATCH_v2
 function resetApp() {
     showDialog('confirm', 'CẢNH BÁO: Xóa toàn bộ dữ liệu sẽ không thể phục hồi. Bạn chắc chứ?', () => {
