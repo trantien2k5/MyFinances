@@ -15,10 +15,19 @@ function toggleAuthMode() {
     document.getElementById('auth-error').classList.add('hidden');
 }
 
+// PATCH_v2
 async function handleAuth(e) {
     e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-pass').value;
+    // Fix: Lấy input ngay trong form đang submit để tránh nhầm ID trùng lặp nơi khác
+    const form = e.target;
+    const emailInput = form.querySelector('#auth-email') || document.getElementById('auth-email');
+    const passInput = form.querySelector('#auth-pass') || document.getElementById('auth-pass');
+    
+    const email = emailInput.value.trim();
+    const pass = passInput.value.trim();
+
+    console.log("📤 Đang gửi:", { email, password: pass, mode: isLoginMode ? 'LOGIN' : 'REGISTER' });
+
     const btn = document.getElementById('btn-auth');
     const errBox = document.getElementById('auth-error');
 
@@ -26,11 +35,15 @@ async function handleAuth(e) {
     errBox.classList.add('hidden');
 
     try {
+        if(!email || !pass) throw new Error("Vui lòng điền đủ Email và Mật khẩu!");
+
         const res = await fetch(API_URL + (isLoginMode ? '/login' : '/register'), {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: pass })
         });
+        
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Lỗi server (${res.status})`);
         if (!data.success) throw new Error(data.error || 'Lỗi kết nối');
 
         if (isLoginMode) {
@@ -43,7 +56,12 @@ async function handleAuth(e) {
             showToast('Đăng ký thành công! Hãy đăng nhập.', 'success');
             toggleAuthMode();
         }
-    } catch (err) { errBox.innerText = err.message; errBox.classList.remove('hidden'); }
+    // PATCH_v2
+    } catch (err) { 
+        errBox.innerText = err.message; 
+        errBox.classList.remove('hidden');
+        showToast(err.message, 'error'); // <--- THÊM DÒNG NÀY ĐỂ HIỆN THÔNG BÁO
+    }
     finally { btn.disabled = false; btn.innerText = isLoginMode ? "Đăng nhập" : "Đăng ký"; }
 }
 
@@ -342,9 +360,17 @@ function showDialog(type, msg, callback, defaultVal = '') {
 }
 function closeDialog() { document.getElementById('custom-dialog').classList.add('hidden'); }
 function formatMoney(num) { return num.toLocaleString('vi-VN') + ' ₫'; }
+// PATCH_v2
 function showToast(msg, type = 'info') {
-    const box = document.createElement('div'); box.className = `p-3 rounded-lg shadow-lg text-white font-medium text-sm animate-bounce ${type === 'success' ? 'bg-green-600' : 'bg-slate-800'}`;
-    box.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i> ${msg}`; document.getElementById('toast-container').appendChild(box); setTimeout(() => box.remove(), 3000);
+    const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-slate-800');
+    const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+    
+    const box = document.createElement('div'); 
+    box.className = `p-3 rounded-lg shadow-lg text-white font-medium text-sm animate-bounce ${color}`;
+    box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`; 
+    
+    const container = document.getElementById('toast-container');
+    if(container) { container.appendChild(box); setTimeout(() => box.remove(), 3000); }
 }
 function openModal(editId = null) {
     const modal = document.getElementById('modal'); modal.classList.remove('hidden');
