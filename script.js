@@ -1,5 +1,46 @@
 // PATCH_v2
+// --- CONFIG: BACKEND CONNECT ---
+const API_URL = "http://localhost:8787/api"; 
+let AUTH_TOKEN = localStorage.getItem('myfinances_token');
+
 // --- CORE: STATE MANAGEMENT ---
+// PATCH_v2: Auth Logic
+let isLoginMode = true;
+function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    document.getElementById('btn-auth').innerText = isLoginMode ? "Đăng nhập" : "Đăng ký";
+    document.getElementById('link-auth').innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký" : "Quay lại Đăng nhập";
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const pass = document.getElementById('auth-pass').value;
+    const errBox = document.getElementById('auth-error');
+
+    try {
+        const res = await fetch(API_URL + (isLoginMode ? '/login' : '/register'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pass })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Lỗi kết nối');
+
+        if (isLoginMode) {
+            localStorage.setItem('myfinances_token', data.token);
+            AUTH_TOKEN = data.token;
+            document.getElementById('auth-modal').classList.add('hidden');
+            showToast(`Xin chào ${data.user.email}!`, 'success');
+            initApp();
+        } else {
+            showToast('Đăng ký thành công! Hãy đăng nhập.', 'success');
+            toggleAuthMode();
+        }
+    } catch (err) {
+        errBox.innerText = err.message; errBox.classList.remove('hidden');
+    }
+}
+
 const APP_DATA = {
 
 
@@ -72,6 +113,14 @@ async function handleAuth(e) {
 // PATCH_v2
 // PATCH_v2
 function initApp() {
+    // PATCH_v2: Check Login First
+    if (!localStorage.getItem('myfinances_token')) {
+        document.getElementById('auth-modal').classList.remove('hidden');
+        return; 
+    } else {
+        document.getElementById('auth-modal').classList.add('hidden');
+    }
+
     // Check First Time
     if (!localStorage.getItem('myfinances_data') && !localStorage.getItem('myfinances_setup')) {
         document.getElementById('setup-wizard').classList.remove('hidden');
