@@ -54,4 +54,47 @@ router.post('/data', async (req, env: Env) => {
 	} catch (e) { return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 }); }
 });
 
+// Thêm giao dịch mới (INSERT vào bảng transactions)
+router.post('/transactions', async (req, env: Env) => {
+    try {
+        const user: any = await checkAuth(req, env);
+        const body = await req.json() as any; // Nhớ định nghĩa interface kỹ hơn sau này
+
+        // Validate cơ bản
+        if (!body.amount || !body.type) return new Response('Thiếu dữ liệu', { status: 400 });
+
+        const result = await env.my_finances_db.prepare(
+            `INSERT INTO transactions (user_id, type, amount, cat_id, cat_name, description, date)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+            user.id, 
+            body.type, 
+            body.amount, 
+            body.catId, 
+            body.catName, 
+            body.desc, 
+            body.date || new Date().toISOString()
+        ).run();
+
+        return { success: true, id: result.meta.last_row_id };
+    } catch (e) {
+        console.error(e); // Log lỗi server
+        return new Response(JSON.stringify({ success: false, error: 'Lỗi hệ thống' }), { status: 500 });
+    }
+});
+
+// Lấy danh sách giao dịch (SELECT từ bảng transactions)
+router.get('/transactions', async (req, env: Env) => {
+    try {
+        const user: any = await checkAuth(req, env);
+        const { results } = await env.my_finances_db.prepare(
+            `SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 100`
+        ).bind(user.id).all();
+        
+        return { success: true, data: results };
+    } catch (e) {
+        return new Response(JSON.stringify({ error: 'Lỗi tải dữ liệu' }), { status: 500 });
+    }
+});
+
 export default { ...router, fetch: async (req: any, env: any) => router.fetch(req, env).then(corsify) };

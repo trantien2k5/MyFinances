@@ -770,6 +770,17 @@ function openModal(editId = null) {
         document.getElementById('loanId').value = ''; document.getElementById('loanStart').value = new Date().toISOString().split('T')[0];
     }
 }
+
+// --- SECURITY UTILS ---
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 // PATCH_v2
 // PATCH_v2

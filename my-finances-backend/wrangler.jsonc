@@ -12,9 +12,10 @@
 	"observability": {
 		"enabled": true
 	},
-	"vars": {
-		"JWT_SECRET": "hãy-đổi-chuỗi-này-thành-secret-rất-dài-và-ngẫu-nhiên"
-	},
+	/**	
+	 * Databases
+	 * https://developers.cloudflare.com/workers/runtime-apis/d1/
+	 */
 	"d1_databases": [
 		{
 			"binding": "my_finances_db",
