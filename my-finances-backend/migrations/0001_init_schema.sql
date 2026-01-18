@@ -40,3 +40,11 @@ CREATE TABLE IF NOT EXISTS user_data (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Bảng User Data (Lưu JSON cục bộ)
+CREATE TABLE IF NOT EXISTS user_data (
+    user_id INTEGER PRIMARY KEY,
+    content TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
