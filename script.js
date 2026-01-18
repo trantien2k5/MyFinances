@@ -1,51 +1,50 @@
 
+// PATCH_v2
 // --- CONFIG & STATE ---
-const $ = document.querySelector.bind(document); // Viết tắt cho gọn
+const $ = document.querySelector.bind(document);
 const KEY = 'transactions_v2';
 
-// Lấy dữ liệu từ LocalStorage hoặc mảng rỗng
+// 1. Utils (Khai báo đầu tiên để tránh lỗi Hoisting)
+const formatMoney = (num) => {
+    return num.toLocaleString('vi-VN') + ' ₫';
+};
+
+// 2. State
 let transactions = JSON.parse(localStorage.getItem(KEY)) || [];
+let budget = +localStorage.getItem('budget_limit') || 5000000; 
+let editId = null; 
+let currentType = 'expense'; // expense | income | transfer
+let chartInstance = null;
 
-
-// --- CONFIG & STATE ---
-// Map icon cho đẹp
+// 3. Config
 const CAT_ICONS = {
     food: { icon: 'fa-burger', color: 'text-orange-500', bg: 'bg-orange-100' },
     shopping: { icon: 'fa-shirt', color: 'text-blue-500', bg: 'bg-blue-100' },
     transport: { icon: 'fa-motorcycle', color: 'text-purple-500', bg: 'bg-purple-100' },
     bill: { icon: 'fa-file-invoice-dollar', color: 'text-red-500', bg: 'bg-red-100' },
     salary: { icon: 'fa-sack-dollar', color: 'text-emerald-500', bg: 'bg-emerald-100' },
-    other: { icon: 'fa-star', color: 'text-gray-500', bg: 'bg-gray-100' }
+    other: { icon: 'fa-star', color: 'text-gray-500', bg: 'bg-gray-100' },
+    transfer: { icon: 'fa-right-left', color: 'text-blue-500', bg: 'bg-blue-100' }
 };
 
-// Config Ví (Core B)
 const WALLETS = {
     cash: { name: 'Tiền mặt', icon: 'fa-money-bill-wave', color: 'text-green-500', bg: 'bg-green-100' },
     bank: { name: 'Ngân hàng', icon: 'fa-university', color: 'text-blue-500', bg: 'bg-blue-100' },
     ewallet: { name: 'Ví điện tử', icon: 'fa-qrcode', color: 'text-purple-500', bg: 'bg-purple-100' }
 };
+// PATCH_v2
+// (Deleted duplicate config block)
 
 // PATCH_v2
-let chartInstance = null;
-let budget = +localStorage.getItem('budget_limit') || 5000000; 
-// PATCH_v2
-let editId = null;
-let currentType = 'expense'; // expense | income | transfer
-
-// Định dạng tiền tệ (VNĐ) - Đưa lên đầu để tránh lỗi Hoisting
-const formatMoney = (num) => {
-    return num.toLocaleString('vi-VN') + ' ₫';
-};
-
 // --- CORE FUNCTIONS (Logic) ---
 
 // PATCH_v2
-const save = () => {
+let save = () => {
     localStorage.setItem(KEY, JSON.stringify(transactions));
     render(); 
     updateChart();
-    renderWallet(); // Cập nhật Budget tab
-    renderWalletList(); // Cập nhật Dashboard Wallets
+    renderWallet(); 
+    renderWalletList(); 
 };
 
 const saveBudget = () => {
@@ -82,6 +81,7 @@ const renderWallet = () => {
 // PATCH_v2
 // PATCH_v2
 // PATCH_v2
+// PATCH_v2
 // Helper UI Functions
 window.setTxType = (type) => {
     currentType = type;
@@ -90,34 +90,39 @@ window.setTxType = (type) => {
     const bgColors = { expense: 'bg-rose-500', income: 'bg-emerald-500', transfer: 'bg-blue-500' };
     const btnText = { expense: 'Chi Tiền Ngay', income: 'Thu Tiền Ngay', transfer: 'Chuyển Tiền Ngay' };
 
-    // Update Tabs UI
     types.forEach(t => {
-        const el = $(`#type-${t}`);
-        if (t === type) {
-            el.className = `flex-1 text-center py-1 rounded-md text-sm font-bold cursor-pointer transition-all bg-white shadow-sm ${colors[t]}`;
-        } else {
-            el.className = `flex-1 text-center py-1 rounded-md text-sm font-bold cursor-pointer transition-all text-gray-500 hover:text-gray-700`;
-        }
+        $(`#type-${t}`).className = t === type 
+            ? `flex-1 text-center py-1 rounded-md text-sm font-bold cursor-pointer transition-all bg-white shadow-sm ${colors[t]}`
+            : `flex-1 text-center py-1 rounded-md text-sm font-bold cursor-pointer transition-all text-gray-500 hover:text-gray-700`;
     });
 
-    // Update Input & Button UI
     $('#amount').className = `w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 font-bold text-2xl text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 ${colors[type]}`;
     $('#btn-submit').className = `w-full text-white font-bold py-3 rounded-lg shadow-md transition-colors ${bgColors[type]} hover:opacity-90`;
     $('#btn-submit').innerText = btnText[type];
 
-    // Show/Hide Fields
+    // PATCH_v2
+    // Transfer Logic UI
+    const dest = $('#transfer-dest');
+    const arrow = $('#arrow-icon');
+    const cat = $('#category');
+    
     if (type === 'transfer') {
-        $('#transfer-dest').classList.remove('hidden');
-        $('#category').parentElement.classList.add('hidden'); // Ẩn Category khi chuyển
+        dest.classList.remove('hidden');
+        arrow.classList.remove('hidden');
+        cat.parentElement.classList.add('opacity-0', 'pointer-events-none'); 
+        $('#label-from').innerText = 'Từ Ví';
     } else {
-        $('#transfer-dest').classList.add('hidden');
-        $('#category').parentElement.classList.remove('hidden');
+        dest.classList.add('hidden');
+        arrow.classList.add('hidden');
+        cat.parentElement.classList.remove('opacity-0', 'pointer-events-none');
+        $('#label-from').innerText = 'Nguồn Tiền';
     }
 };
 
-window.setAmount = (val) => {
-    $('#amount').value = val;
-};
+window.setAmount = (val) => { $('#amount').value = val; };
+
+// Set Default Date Today
+$('#date').valueAsDate = new Date();
 
 // CORE: ADD TRANSACTION
 const addTransaction = (e) => {
@@ -127,29 +132,38 @@ const addTransaction = (e) => {
     const category = $('#category').value;
     const wallet = $('#wallet').value;
     const toWallet = $('#to-wallet').value;
+    const dateVal = $('#date').value || new Date().toISOString().slice(0, 10);
+    const dateId = new Date(dateVal).getTime(); // Use selected date timestamp
 
-    if (!rawAmount || rawAmount <= 0) return alert('Vui lòng nhập số tiền hợp lệ!');
+    if (!rawAmount || rawAmount <= 0) return alert('Vui lòng nhập số tiền!');
 
-    // Xử lý dấu dựa trên loại giao dịch
     let finalAmount = rawAmount;
-    if (currentType === 'expense') finalAmount = -rawAmount;
-    if (currentType === 'transfer') finalAmount = -rawAmount; // Trừ ví nguồn
+    if (currentType === 'expense' || currentType === 'transfer') finalAmount = -rawAmount;
+
+    // Auto Note for Transfer
+    let finalNote = text;
+    if (currentType === 'transfer' && !text) {
+        finalNote = `Chuyển: ${WALLETS[wallet].name} ➡ ${WALLETS[toWallet].name}`;
+    } else if (!text) {
+        finalNote = 'Không có ghi chú';
+    }
 
     const transactionData = { 
-        id: editId || Date.now(), 
-        text: currentType === 'transfer' ? `Chuyển đến ${WALLETS[toWallet].name}` : (text || 'Không có ghi chú'), 
+        id: editId || dateId + Math.floor(Math.random() * 1000), // Unique ID based on date
+        text: finalNote, 
         amount: finalAmount, 
         category: currentType === 'transfer' ? 'transfer' : category, 
         wallet: wallet,
-        type: currentType, // expense | income | transfer
-        to_wallet: currentType === 'transfer' ? toWallet : null
+        type: currentType, 
+        to_wallet: currentType === 'transfer' ? toWallet : null,
+        created_at: dateVal // Lưu ngày hiển thị
     };
 
     if (editId) {
         const index = transactions.findIndex(t => t.id === editId);
         if (index !== -1) transactions[index] = transactionData;
         editId = null;
-        // Reset button state logic if needed
+        $('#btn-submit').innerText = 'Thêm Giao Dịch';
     } else {
         transactions.push(transactionData);
     }
@@ -177,23 +191,8 @@ window.editTransaction = (id) => {
     $('#amount').focus();
 };
 
-// Hàm kích hoạt chế độ sửa
-window.editTransaction = (id) => {
-    const item = transactions.find(t => t.id === id);
-    if (!item) return;
-
-    editId = id;
-    $('#text').value = item.text;
-    $('#amount').value = item.amount;
-    $('#category').value = item.category || 'other';
-    
-    // Đổi giao diện nút bấm
-    $('#btn-submit').innerText = 'Lưu Thay Đổi';
-    $('#btn-submit').classList.add('bg-green-600', 'hover:bg-green-700');
-    
-    switchTab('home'); // Chuyển về tab Home để sửa
-    $('#amount').focus();
-};
+// PATCH_v2
+// (Deleted duplicate function)
 
 // Hàm vẽ biểu đồ (Chart.js)
 const updateChart = () => {
@@ -288,11 +287,26 @@ const toggleDarkMode = () => {
     alert('Chế độ tối đang được cập nhật thêm CSS...'); 
 };
 
+// PATCH_v2
 const resetApp = () => {
-    if(confirm('CẢNH BÁO: Toàn bộ dữ liệu sẽ bị xóa vĩnh viễn! Bạn chắc chứ?')) {
+    const code = prompt('CẢNH BÁO: Dữ liệu sẽ mất vĩnh viễn!\nNhập chữ "XOA" để xác nhận:');
+    if(code === 'XOA') {
         localStorage.clear();
         location.reload();
+    } else if (code !== null) {
+        alert('Mã xác nhận không đúng.');
     }
+};
+
+// Hook renderRecent vào save
+const originalSave = save;
+save = () => {
+    localStorage.setItem(KEY, JSON.stringify(transactions));
+    render(); 
+    updateChart();
+    renderWallet(); 
+    renderWalletList(); 
+    renderRecent(); // New hook
 };
 
 const editName = () => {
@@ -323,7 +337,44 @@ const removeTransaction = (id) => {
 // PATCH_v2
 // PATCH_v2
 // PATCH_v2
+// PATCH_v2
 // --- RENDER FUNCTIONS (Giao diện) ---
+const renderRecent = () => {
+    const list = $('#recent-list');
+    const block = $('#recent-block');
+    if (!list || !block) return;
+
+    if (transactions.length === 0) {
+        block.classList.add('hidden');
+        return;
+    }
+
+    block.classList.remove('hidden');
+    // Lấy 3 giao dịch mới nhất
+    const recent = [...transactions].reverse().slice(0, 3);
+    
+    list.innerHTML = recent.map(t => {
+        const catConfig = CAT_ICONS[t.category] || CAT_ICONS['other'];
+        const isExpense = t.amount < 0;
+        return `
+            <li class="bg-white p-3 rounded-lg border border-gray-100 flex justify-between items-center shadow-sm">
+                <div class="flex items-center">
+                    <div class="${catConfig.bg} w-8 h-8 rounded-full flex items-center justify-center mr-3 text-xs">
+                        <i class="fas ${catConfig.icon} ${catConfig.color}"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm text-gray-700">${t.text}</p>
+                        <p class="text-[10px] text-gray-400">${new Date(t.created_at || t.id).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                </div>
+                <span class="font-bold text-sm ${isExpense ? 'text-rose-600' : 'text-emerald-600'}">
+                    ${t.amount < 0 ? '-' : '+'}${formatMoney(Math.abs(t.amount))}
+                </span>
+            </li>
+        `;
+    }).join('');
+};
+
 const renderWalletList = () => {
     const container = $('#wallet-list');
     if (!container) return;

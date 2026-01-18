@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 text-gray-800 pb-24 md:pb-0">
+<body class="bg-gray-50 text-gray-800 pb-32 md:pb-0">
 
     <nav class="hidden md:block bg-indigo-600 text-white p-4 shadow-lg">
         <div class="container mx-auto max-w-2xl font-bold flex items-center">
@@ -26,18 +26,32 @@
         </div>
 
         <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl mb-6 transform hover:scale-[1.02] transition-all">
-            <p class="text-indigo-100 text-sm mb-1">Số dư hiện tại</p>
-            <h2 id="balance" class="text-3xl font-bold mb-4">0 ₫</h2>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-indigo-100 text-sm mb-1 opacity-80">Số dư hiện tại</p>
+                    <h2 id="balance" class="text-3xl font-bold mb-4">0 ₫</h2>
+                </div>
+                <span class="bg-white/20 text-xs px-2 py-1 rounded text-white">Tháng này</span>
+            </div>
             <div class="flex border-t border-indigo-400/30 pt-4">
                 <div class="w-1/2 border-r border-indigo-400/30">
-                    <p class="text-xs text-indigo-100 uppercase">Thu nhập</p>
+                    <p class="text-xs text-indigo-100 uppercase opacity-80">Thu nhập</p>
                     <p id="money-plus" class="text-lg font-semibold text-emerald-300">+0 ₫</p>
                 </div>
                 <div class="w-1/2 pl-4">
-                    <p class="text-xs text-indigo-100 uppercase">Chi tiêu</p>
+                    <p class="text-xs text-indigo-100 uppercase opacity-80">Chi tiêu</p>
                     <p id="money-minus" class="text-lg font-semibold text-rose-200">-0 ₫</p>
                 </div>
             </div>
+        </div>
+
+        <div id="recent-block" class="mb-6 hidden">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-gray-700 text-sm">Giao dịch gần đây</h3>
+                <span onclick="switchTab('home'); document.getElementById('search').focus();" class="text-xs text-indigo-600 font-medium cursor-pointer">Xem tất cả</span>
+            </div>
+            <ul id="recent-list" class="space-y-2">
+                </ul>
         </div>
 
         <form id="form" class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100 relative">
@@ -59,6 +73,8 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="date" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    
                     <select id="category" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="food">🍔 Ăn uống</option>
                         <option value="shopping">🛒 Mua sắm</option>
@@ -66,24 +82,33 @@
                         <option value="bill">🧾 Hóa đơn</option>
                         <option value="other">✨ Khác</option>
                     </select>
-                    
-                    <select id="wallet" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="cash">💵 Tiền mặt</option>
-                        <option value="bank">🏦 Ngân hàng</option>
-                        <option value="ewallet">📱 Ví điện tử</option>
-                    </select>
                 </div>
 
-                <div id="transfer-dest" class="hidden">
-                    <label class="text-xs text-gray-400 ml-1">Đến ví:</label>
-                    <select id="to-wallet" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="bank">🏦 Ngân hàng</option>
-                        <option value="cash">💵 Tiền mặt</option>
-                        <option value="ewallet">📱 Ví điện tử</option>
-                    </select>
+                <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex flex-col flex-1 transition-all">
+                            <span class="text-[10px] text-gray-400 uppercase font-bold pl-1" id="label-from">Nguồn Tiền</span>
+                            <select id="wallet" class="bg-transparent text-sm font-semibold focus:outline-none w-full cursor-pointer py-1">
+                                <option value="cash">💵 Tiền mặt</option>
+                                <option value="bank">🏦 Ngân hàng</option>
+                                <option value="ewallet">📱 Ví</option>
+                            </select>
+                        </div>
+
+                        <i class="fas fa-arrow-right text-gray-400 text-sm px-2 hidden" id="arrow-icon"></i>
+
+                        <div class="flex flex-col flex-1 text-right hidden" id="transfer-dest">
+                            <span class="text-[10px] text-gray-400 uppercase font-bold pr-1">Đến Ví</span>
+                            <select id="to-wallet" class="bg-transparent text-sm font-semibold focus:outline-none w-full text-right cursor-pointer py-1" dir="rtl">
+                                <option value="bank">🏦 Ngân hàng</option>
+                                <option value="cash">💵 Tiền mặt</option>
+                                <option value="ewallet">📱 Ví</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                
-                <input type="text" id="text" placeholder="Ghi chú" 
+
+                <input type="text" id="text" placeholder="Ghi chú (Tùy chọn)" 
                     class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 
                 <button id="btn-submit" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-lg shadow-md transition-colors">
@@ -196,23 +221,27 @@
         </div>
     </div>
 
-    <div class="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-100 flex justify-around p-3 pb-5 z-50 text-gray-400 text-xs text-center font-medium shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-        <div class="nav-item cursor-pointer text-indigo-600" data-tab="home">
-            <i class="fas fa-home text-xl mb-1"></i><br>Home
+    <div class="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-100 grid grid-cols-5 items-end p-2 pb-5 z-50 text-gray-400 text-xs text-center font-medium shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <div class="nav-item cursor-pointer text-indigo-600 py-1" data-tab="home">
+            <i class="fas fa-home text-xl mb-1"></i><br>Tổng quan
         </div>
-        <div class="nav-item cursor-pointer hover:text-indigo-500" data-tab="report">
-            <i class="fas fa-chart-pie text-xl mb-1"></i><br>Report
+        <div class="nav-item cursor-pointer hover:text-indigo-500 py-1" data-tab="report">
+            <i class="fas fa-chart-pie text-xl mb-1"></i><br>Báo cáo
         </div>
-        <div id="btn-plus" class="cursor-pointer -mt-8 transform transition hover:scale-110 active:scale-95">
-            <div class="bg-indigo-600 text-white rounded-full p-4 shadow-lg ring-4 ring-gray-50">
-                <i class="fas fa-plus text-xl"></i>
+        
+        <div class="flex justify-center h-full relative">
+            <div id="btn-plus" class="cursor-pointer absolute -top-10 transform transition hover:scale-110 active:scale-95">
+                <div class="bg-indigo-600 text-white rounded-full p-4 shadow-lg ring-4 ring-gray-50 flex items-center justify-center w-14 h-14">
+                    <i class="fas fa-plus text-xl"></i>
+                </div>
             </div>
         </div>
-        <div class="nav-item cursor-pointer hover:text-indigo-500" data-tab="wallet">
-            <i class="fas fa-wallet text-xl mb-1"></i><br>Wallet
+
+        <div class="nav-item cursor-pointer hover:text-indigo-500 py-1" data-tab="wallet">
+            <i class="fas fa-wallet text-xl mb-1"></i><br>Ví
         </div>
-        <div class="nav-item cursor-pointer hover:text-indigo-500" data-tab="me">
-            <i class="fas fa-user text-xl mb-1"></i><br>Me
+        <div class="nav-item cursor-pointer hover:text-indigo-500 py-1" data-tab="me">
+            <i class="fas fa-user text-xl mb-1"></i><br>Tôi
         </div>
     </div>
 
