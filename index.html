@@ -82,6 +82,21 @@
                 </div>
             </div>
             
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-white p-3 rounded-2xl border shadow-sm text-center">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">Hôm nay</div>
+                    <div class="text-sm font-bold text-slate-800 truncate" id="stat-today">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-2xl border shadow-sm text-center">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">Tuần này</div>
+                    <div class="text-sm font-bold text-blue-600 truncate" id="stat-week">0</div>
+                </div>
+                <div class="bg-white p-3 rounded-2xl border shadow-sm text-center">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">Tháng này</div>
+                    <div class="text-sm font-bold text-purple-600 truncate" id="stat-month">0</div>
+                </div>
+            </div>
+
             <div class="bg-white p-4 rounded-2xl shadow-sm border mb-4 relative overflow-hidden">
                 <div class="flex justify-between items-end mb-2">
                     <div>
@@ -167,13 +182,7 @@
                 </div>
             </div>
 
-            <div id="debt-strategy-box" class="hidden mb-4 bg-blue-50 p-3 rounded-xl flex justify-between items-center border border-blue-100">
-                <div>
-                    <div class="text-xs font-bold text-blue-800 uppercase mb-1">Chiến lược ưu tiên</div>
-                    <div class="text-sm text-blue-600" id="strategy-name">Snowball (Trả nợ nhỏ trước)</div>
-                </div>
-                <button onclick="toggleStrategy()" class="bg-white text-blue-600 text-xs font-bold px-3 py-2 rounded-lg border hover:bg-blue-100 shadow-sm">Đổi chiến lược</button>
-            </div>
+            
 
             <div id="debt-empty" class="hidden flex flex-col items-center justify-center py-10 text-center">
                 <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-4xl text-slate-300 mb-4"><i class="fa-solid fa-file-invoice-dollar"></i></div>
@@ -301,16 +310,24 @@
         </div>
     </main>
 
-    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t flex justify-around p-3 z-50">
-        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="dashboard"><i class="fa-solid fa-chart-pie text-xl mb-1"></i>Home</button>
-        <button onclick="switchTab('debts')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="debts"><i class="fa-solid fa-credit-card text-xl mb-1"></i>Nợ</button>
-        <button onclick="switchTab('budget')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="budget"><i class="fa-solid fa-wallet text-xl mb-1"></i>ThuChi</button>
-        <button onclick="switchTab('account')" class="nav-btn flex flex-col items-center text-xs text-slate-500" data-target="account"><i class="fa-solid fa-user-gear text-xl mb-1"></i>Account</button>
+    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t flex justify-between items-end px-2 pb-2 pt-3 z-[100]">
+        <button onclick="switchTab('dashboard')" class="nav-btn w-16 flex flex-col items-center text-[10px] text-slate-500" data-target="dashboard"><i class="fa-solid fa-chart-pie text-lg mb-1"></i>Home</button>
+        <button onclick="switchTab('debts')" class="nav-btn w-16 flex flex-col items-center text-[10px] text-slate-500" data-target="debts"><i class="fa-solid fa-credit-card text-lg mb-1"></i>Nợ</button>
+        <div class="relative -top-5">
+            <button onclick="toggleQuickMenu()" class="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl shadow-xl border-4 border-slate-50 active:scale-95 transition-transform"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <button onclick="switchTab('budget')" class="nav-btn w-16 flex flex-col items-center text-[10px] text-slate-500" data-target="budget"><i class="fa-solid fa-wallet text-lg mb-1"></i>ThuChi</button>
+        <button onclick="switchTab('account')" class="nav-btn w-16 flex flex-col items-center text-[10px] text-slate-500" data-target="account"><i class="fa-solid fa-user-gear text-lg mb-1"></i>Account</button>
     </nav>
 
-    <button onclick="openQuickAdd()" class="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-[100] w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center text-2xl hover:bg-blue-700 active:scale-90 transition-transform animate-bounce-slow">
-        <i class="fa-solid fa-plus"></i>
-    </button>
+    <div id="quick-menu" class="hidden fixed inset-0 bg-slate-900/90 z-[150] flex flex-col justify-end pb-32 items-center backdrop-blur-sm transition-all" onclick="toggleQuickMenu()">
+        <div class="grid grid-cols-3 gap-6 mb-4">
+            <button onclick="handleQuickAction('income')" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg group-active:scale-90 transition-transform"><i class="fa-solid fa-arrow-down"></i></div><span class="text-white font-bold text-sm">Thu nhập</span></button>
+            <button onclick="handleQuickAction('expense')" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-red-500 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg group-active:scale-90 transition-transform"><i class="fa-solid fa-arrow-up"></i></div><span class="text-white font-bold text-sm">Chi tiêu</span></button>
+            <button onclick="handleQuickAction('loan')" class="flex flex-col items-center gap-2 group"><div class="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg group-active:scale-90 transition-transform"><i class="fa-solid fa-hand-holding-dollar"></i></div><span class="text-white font-bold text-sm">Vay/Nợ</span></button>
+        </div>
+        <div class="text-white/40 text-xs font-medium uppercase tracking-widest mt-4">Chạm để đóng</div>
+    </div>
 
     <div id="toast-container" class="fixed top-5 right-5 z-[210] flex flex-col gap-2 pointer-events-none"></div>
 
@@ -331,7 +348,10 @@
             <div class="mb-4 text-4xl text-blue-500" id="dialog-icon"><i class="fa-solid fa-circle-question"></i></div>
             <h3 class="text-lg font-bold text-slate-800 mb-2" id="dialog-title">Xác nhận</h3>
             <p class="text-slate-500 text-sm mb-4" id="dialog-msg">Bạn có chắc chắn muốn thực hiện?</p>
-            <input type="number" id="dialog-input" class="hidden w-full p-3 border rounded-lg mb-6 text-center font-bold text-xl outline-none focus:border-blue-500" placeholder="Nhập số tiền...">
+            <div id="dialog-input-wrapper" class="hidden relative mb-6">
+                <input type="text" inputmode="numeric" id="dialog-input" oninput="onAmountInput(this)" class="w-full p-3 border rounded-lg text-center font-bold text-xl outline-none focus:border-blue-500 text-blue-600" placeholder="0">
+                <span class="absolute right-4 top-3.5 text-slate-400 font-bold">₫</span>
+            </div>
             <div class="flex gap-3 justify-center" id="dialog-actions"></div>
         </div>
     </div>
@@ -367,30 +387,15 @@
                     <div class="relative"><input type="text" inputmode="numeric" id="loanAmount" oninput="calcLoanPreview()" placeholder="0" class="w-full border p-3 rounded-lg font-mono font-bold text-lg outline-none focus:border-blue-500 pr-8" required><span class="absolute right-3 top-3.5 text-slate-400 text-xs font-bold">₫</span></div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Kỳ hạn (Tháng) <span class="text-red-500">*</span></label><input type="number" id="loanTerm" oninput="calcLoanPreview()" placeholder="12" class="w-full border p-2 rounded-lg outline-none focus:border-blue-500" required></div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1">Lãi suất</label>
-                        <div class="flex">
-                            <input type="number" id="loanRate" oninput="calcLoanPreview()" placeholder="0" step="0.1" class="w-full border-y border-l p-2 rounded-l-lg outline-none focus:border-blue-500">
-                            <select id="rateType" onchange="calcLoanPreview()" class="bg-slate-100 border p-2 rounded-r-lg text-xs font-bold outline-none text-slate-600">
-                                <option value="year">/Năm</option>
-                                <option value="month">/Tháng</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">Cách tính lãi</label>
-                    <select id="interestMethod" onchange="calcLoanPreview()" class="w-full border p-2 rounded-lg outline-none text-sm font-bold bg-slate-50 text-slate-700">
-                        <option value="reducing">Dư nợ giảm dần (Ngân hàng)</option>
-                        <option value="flat">Theo dư nợ gốc (Tín chấp/Trả góp)</option>
-                    </select>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Số tiền trả hàng tháng (Cố định) <span class="text-red-500">*</span></label>
+                    <div class="relative"><input type="text" inputmode="numeric" id="loanMonthly" oninput="onAmountInput(this)" placeholder="0" class="w-full border p-3 rounded-lg font-bold text-blue-600 outline-none focus:border-blue-500 pr-8" required><span class="absolute right-3 top-3.5 text-slate-400 text-xs font-bold">₫</span></div>
                 </div>
-
-                <div id="loan-preview" class="bg-blue-50 p-3 rounded-xl border border-blue-100 hidden">
-                    <div class="flex justify-between items-center mb-1"><span class="text-xs text-blue-600">Dự kiến trả hàng tháng:</span><span class="font-bold text-blue-800" id="prev-emi">0 ₫</span></div>
-                    <div class="flex justify-between items-center"><span class="text-xs text-slate-400">Tổng lãi dự kiến:</span><span class="font-bold text-slate-500 text-xs" id="prev-interest">0 ₫</span></div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Tổng lãi dự kiến (Optional)</label>
+                    <div class="relative"><input type="text" inputmode="numeric" id="loanInterest" oninput="onAmountInput(this)" placeholder="0" class="w-full border p-3 rounded-lg outline-none focus:border-blue-500 pr-8 bg-slate-50"><span class="absolute right-3 top-3.5 text-slate-400 text-xs font-bold">₫</span></div>
+                    <p class="text-[10px] text-slate-400 mt-1">💡 Nhập số tiền lãi ước tính để theo dõi chi phí vay.</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 pt-2 border-t">

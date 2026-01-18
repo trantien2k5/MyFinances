@@ -87,7 +87,7 @@ async function handleAuth(e) {
     }
 }
 
-// PATCH_v2
+
 function mergeData(cloudData) {
     if (!cloudData) return;
     const mergeArr = (local, cloud) => {
@@ -125,34 +125,15 @@ function updateSyncStatus() {
     }
 }
 
-// PATCH_v2
-// PATCH_v2
+
+
+
 function logout() {
-    if (confirm('Đăng xuất khỏi thiết bị này?')) {
+    showDialog('confirm', 'Đăng xuất khỏi thiết bị này?', () => {
         localStorage.removeItem('myfinances_token');
         localStorage.removeItem('myfinances_data');
         location.reload();
-    }
-}
-
-function clearTransactions() {
-    if (confirm('Bạn có chắc muốn xóa TOÀN BỘ lịch sử giao dịch?')) {
-        APP_DATA.transactions = [];
-        saveData();
-        renderBudget();
-        updateDashboard();
-        showToast('Đã xóa sạch lịch sử giao dịch!', 'success');
-    }
-}
-
-function resetApp() {
-    const code = prompt('Nhập "DELETE" để xác nhận xóa toàn bộ dữ liệu:');
-    if (code === 'DELETE') {
-        localStorage.clear();
-        location.reload();
-    } else if (code !== null) {
-        alert('Mã xác nhận không đúng!');
-    }
+    });
 }
 
 function clearTransactions() {
@@ -175,7 +156,7 @@ function resetApp() {
 }
 
 // --- CORE APP ---
-// PATCH_v2
+
 async function initApp() {
     if (!AUTH_TOKEN) return document.getElementById('auth-modal').classList.remove('hidden');
     document.getElementById('auth-modal').classList.add('hidden');
@@ -248,8 +229,8 @@ const CATS = {
     ]
 };
 
-// PATCH_v2
-// PATCH_v2
+
+
 function setType(type) {
     document.getElementById('transType').value = type;
     const isExp = type === 'expense';
@@ -291,7 +272,7 @@ function updateCategories() {
     if(CATS[type].length > 0) selectCat(CATS[type][0].id);
 }
 
-// PATCH_v2
+
 const PLACEHOLDERS = {
     'live': 'Cơm trưa, cafe, trà sữa...', 'move': 'Đổ xăng, gửi xe, Grab...', 'bill': 'Điện, nước, net...', 
     'debt': 'Trả nợ ai, khoản nào...', 'salary': 'Lương tháng 10, thưởng...', 'bonus': 'Lì xì, trúng số...'
@@ -318,10 +299,8 @@ function initBudgetForm() {
     onAmountInput(document.getElementById('transAmount')); // Reset button state
 }
 
-function formatInputMoney(el) {
-    let val = el.value.replace(/\D/g, '');
-    el.value = val ? parseInt(val).toLocaleString('vi-VN') : '';
-}
+
+// (Deleted dead code)
 
 function handleAddTransaction(e) {
     e.preventDefault();
@@ -367,8 +346,8 @@ function deleteGoal(id) {
     if (confirm('Xóa mục tiêu?')) { APP_DATA.goals = APP_DATA.goals.filter(g => g.id !== id); saveData(); renderGoals(); }
 }
 
-// PATCH_v2
-// PATCH_v2
+
+
 function initLoanForm() {
     const sel = document.getElementById('loanDay');
     if(sel && sel.children.length === 0) {
@@ -376,137 +355,64 @@ function initLoanForm() {
     }
 }
 
-// PATCH_v2
-// PATCH_v2
-function calcLoanPreview() {
-    const e = window.event;
-    if (e && (e.inputType === 'insertCompositionText' || e.isComposing)) return;
-    const amtEl = document.getElementById('loanAmount');
-    let rawAmt = amtEl.value.replace(/\D/g, '');
-    let formatted = rawAmt ? parseInt(rawAmt).toLocaleString('vi-VN') : '';
-    if (amtEl.value !== formatted) amtEl.value = formatted;
 
-    const P = Number(rawAmt), n = Number(document.getElementById('loanTerm').value);
-    let inputRate = Number(document.getElementById('loanRate').value) || 0;
-    const rateType = document.getElementById('rateType').value;
-    const yearlyRate = rateType === 'month' ? inputRate * 12 : inputRate;
-    const r = yearlyRate / 100 / 12;
-    const method = document.getElementById('interestMethod').value; // 'reducing' | 'flat'
-    
-    const prev = document.getElementById('loan-preview');
-    if (P > 0 && n > 0) {
-        prev.classList.remove('hidden');
-        let emi = 0;
-        if (method === 'flat') {
-            emi = (P / n) + (P * r); // Gốc chia đều + Lãi trên gốc ban đầu
-        } else {
-            emi = (r === 0) ? (P / n) : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-        }
-        const totalInterest = (emi * n) - P;
-        document.getElementById('prev-emi').innerText = formatMoney(Math.round(emi)) + '/tháng';
-        document.getElementById('prev-interest').innerText = formatMoney(Math.max(0, Math.round(totalInterest)));
-    } else { prev.classList.add('hidden'); }
-}
 
-function handleSaveLoan(e) {
-    e.preventDefault();
-    const id = document.getElementById('loanId').value;
-    let inputRate = Number(document.getElementById('loanRate').value) || 0;
-    const rateType = document.getElementById('rateType').value;
-    const yearlyRate = rateType === 'month' ? inputRate * 12 : inputRate;
 
-    const loanData = {
-        name: document.getElementById('loanName').value, code: document.getElementById('loanCode').value,
-        startDate: document.getElementById('loanStart').value || new Date().toISOString().split('T')[0],
-        day: Number(document.getElementById('loanDay').value),
-        amount: Number(document.getElementById('loanAmount').value.replace(/\./g, '')),
-        rate: yearlyRate, term: Number(document.getElementById('loanTerm').value),
-        method: document.getElementById('interestMethod').value
-    };
-    if (id) {
-        const idx = APP_DATA.loans.findIndex(l => l.id == id);
-        if (idx !== -1) APP_DATA.loans[idx] = { ...APP_DATA.loans[idx], ...loanData };
-    } else {
-        APP_DATA.loans.push({ id: Date.now(), paid: 0, date: new Date().toISOString(), ...loanData });
-    }
-    saveData(); closeModal(); renderLoans(); showToast('Đã lưu khoản vay', 'success');
-}
+// (Deleted unused calcLoanPreview function)
 
-// Cập nhật renderLoans để tính đúng EMI hiển thị
-const _oldRenderLoans = renderLoans;
-renderLoans = () => {
-    // Override logic tính EMI trong map
-    const list = document.getElementById('debt-list');
-    if (!list) return;
-    _oldRenderLoans(); // Gọi hàm cũ để render khung, sau đó patch lại HTML nếu cần (hoặc sửa trực tiếp logic renderLoans gốc nếu bạn muốn clean hơn)
-    // Tốt nhất là sửa hàm renderLoans gốc. Hãy Paste block dưới đè lên hàm renderLoans cũ
-};
-
-// FIX: Cập nhật luôn hàm format ở màn hình Thu Chi
-function onAmountInput(el) {
-    const e = window.event;
-    if (e && (e.inputType === 'insertCompositionText' || e.isComposing)) return;
-
-    let val = Number(el.value.replace(/\D/g, ''));
-    let formatted = val ? val.toLocaleString('vi-VN') : '';
-    if (el.value !== formatted) el.value = formatted;
-    
-    const btn = document.getElementById('btn-save');
-    if (btn) {
-        btn.disabled = !val;
-        if (val) {
-            btn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
-            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
-        } else {
-            btn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
-            btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'shadow-lg');
-        }
-    }
-}
 
 function handleSaveLoan(e) {
     e.preventDefault();
     const id = document.getElementById('loanId').value;
     const loanData = {
-        name: document.getElementById('loanName').value, code: document.getElementById('loanCode').value,
+        name: document.getElementById('loanName').value, 
+        code: document.getElementById('loanCode').value,
         startDate: document.getElementById('loanStart').value || new Date().toISOString().split('T')[0],
         day: Number(document.getElementById('loanDay').value),
-        amount: Number(document.getElementById('loanAmount').value.replace(/\./g, '')),
-        rate: Number(document.getElementById('loanRate').value) || 0,
-        term: Number(document.getElementById('loanTerm').value),
+        amount: Number(document.getElementById('loanAmount').value.replace(/\D/g, '')),
+        
+        // PATCH_v2
+        monthlyPayment: Number(document.getElementById('loanMonthly').value.replace(/\D/g, '')),
+        totalInterest: Number(document.getElementById('loanInterest').value.replace(/\D/g, '')),
     };
     if (id) {
         const idx = APP_DATA.loans.findIndex(l => l.id == id);
-        if (idx !== -1) APP_DATA.loans[idx] = { ...APP_DATA.loans[idx], ...loanData };
+        if (idx !== -1) {
+            // Cho phép sửa Paid khi edit
+            const manualPaid = Number(document.getElementById('loanPaid').value.replace(/\D/g, ''));
+            APP_DATA.loans[idx] = { ...APP_DATA.loans[idx], ...loanData, paid: manualPaid };
+        }
     } else {
-        APP_DATA.loans.push({ id: Date.now(), paid: 0, date: new Date().toISOString(), ...loanData });
+        APP_DATA.loans.push({ id: Date.now(), paid: 0, ...loanData });
     }
     saveData(); closeModal(); renderLoans(); showToast('Đã lưu khoản vay', 'success');
 }
 
-// Update openModal to trigger init
-const _oldOpen = openModal;
-openModal = (editId) => {
-    initLoanForm(); _oldOpen(editId);
-    if(editId) {
-        const l = APP_DATA.loans.find(i => i.id === editId);
-        document.getElementById('loanAmount').value = l.amount.toLocaleString('vi-VN');
-    } else {
-        document.getElementById('loanAmount').value = '';
-    }
-    calcLoanPreview();
-};
 
-function payDebt(id, name, amount) {
-    showDialog('confirm', `Trả ${formatMoney(amount)} cho "${name}"?`, () => {
+// (Deleted monkey-patch)
+
+
+// (Đã xóa block code bị lặp và gây lỗi logic handleSaveLoan cũ tại đây)
+
+
+// (Deleted monkey-patch - Logic moved to main function below)
+
+// PATCH_v2
+function payDebt(id, name, defaultAmount) {
+    showDialog('prompt', `Nhập số tiền thực trả cho "${name}":`, (val) => {
+        const amount = Number(val.replace(/\D/g, ''));
+        if (!amount) return;
+
         APP_DATA.transactions.unshift({
             id: Date.now(), type: 'expense', amount: amount, catId: 'debt', catName: 'Trả nợ', icon: '🏦',
             desc: `Trả nợ: ${name}`, date: new Date().toISOString()
         });
+        
         const loan = APP_DATA.loans.find(l => l.id === id);
         if (loan) loan.paid = (loan.paid || 0) + amount;
-        saveData(); renderBudget(); renderLoans(); updateDashboard(); showToast('Đã thanh toán');
-    });
+        
+        saveData(); renderBudget(); renderLoans(); updateDashboard(); showToast(`Đã trả: ${formatMoney(amount)}`, 'success');
+    }, defaultAmount.toLocaleString('vi-VN'));
 }
 
 function deleteLoan(id) {
@@ -516,7 +422,7 @@ function deleteLoan(id) {
     });
 }
 
-// PATCH_v2
+
 function handleAdjustBalance() {
     const realBal = Number(document.getElementById('realBalance').value);
     if (!realBal && realBal !== 0) return showToast('Nhập số dư thực tế!', 'error');
@@ -589,7 +495,7 @@ function getSummary() {
     return { debt, monthlyPay, income, expense, balance: income - expense };
 }
 
-// PATCH_v2
+
 let chartAsset = null, chartFlow = null;
 function updateDashboard() {
     renderGoals(); const data = getSummary();
@@ -615,8 +521,22 @@ function updateDashboard() {
         bar.className = `h-2 rounded-full transition-all duration-500 ${pct > 90 ? 'bg-red-500' : 'bg-blue-600'}`;
     }
 
-    // 2. Insight & Header
+    
+    // 2. Insight & Header (Stats Logic)
     const todaySpent = APP_DATA.transactions.filter(t => t.type === 'expense' && new Date(t.date).toDateString() === now.toDateString()).reduce((s, t) => s + t.amount, 0);
+    
+    // Tính thêm tháng này
+    const monthlySpent = APP_DATA.transactions
+        .filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear())
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    // Render Stats Grid (Rút gọn ' ₫' để số thoáng hơn)
+    if(document.getElementById('stat-today')) {
+        document.getElementById('stat-today').innerText = formatMoney(todaySpent).replace(' ₫','');
+        document.getElementById('stat-week').innerText = formatMoney(weeklySpent).replace(' ₫','');
+        document.getElementById('stat-month').innerText = formatMoney(monthlySpent).replace(' ₫','');
+    }
+
     document.getElementById('daily-insight').innerText = todaySpent > 0 
         ? `📉 Hôm nay bạn đã chi ${formatMoney(todaySpent)}` 
         : '✨ Hôm nay chưa tiêu gì. Tuyệt vời!';
@@ -665,90 +585,91 @@ function updateDashboard() {
 // --- UTILS ---
 let debtStrategy = 'snowball';
 function toggleStrategy() { debtStrategy = debtStrategy === 'snowball' ? 'avalanche' : 'snowball'; renderLoans(); showToast(`Đổi: ${debtStrategy}`); }
+
 // PATCH_v2
 function renderLoans() {
     const list = document.getElementById('debt-list');
     const empty = document.getElementById('debt-empty');
-    const stratBox = document.getElementById('debt-strategy-box');
-    
     if (APP_DATA.loans.length === 0) {
         list.innerHTML = ''; list.classList.add('hidden');
         if(empty) empty.classList.remove('hidden'); 
-        if(stratBox) stratBox.classList.add('hidden');
         if(document.getElementById('total-debt')) document.getElementById('total-debt').innerText = '0 ₫';
         return;
     }
-
-    list.classList.remove('hidden'); if(empty) empty.classList.add('hidden'); if(stratBox) stratBox.classList.remove('hidden');
-    document.getElementById('strategy-name').innerText = debtStrategy === 'snowball' ? 'Snowball (Trả khoản nhỏ trước)' : 'Avalanche (Trả lãi cao trước)';
-
+    list.classList.remove('hidden'); if(empty) empty.classList.add('hidden');
+    
     let totalRemaining = 0, totalMonthly = 0, closestDate = null;
     const today = new Date().getDate();
 
+    // Sort: Ưu tiên ngày trả nợ sắp đến (Ngày nhỏ -> Lớn)
     const loans = [...APP_DATA.loans].sort((a, b) => {
-        const remA = a.amount - (a.paid||0), remB = b.amount - (b.paid||0);
-        return debtStrategy === 'snowball' ? remA - remB : b.rate - a.rate;
+        if (a.amount <= (a.paid||0)) return 1; // Đã trả xong đẩy xuống đáy
+        if (b.amount <= (b.paid||0)) return -1;
+        
+        // Tính khoảng cách ngày đến hạn so với hôm nay
+        let distA = a.day - today; if (distA < 0) distA += 30;
+        let distB = b.day - today; if (distB < 0) distB += 30;
+        return distA - distB;
     });
 
     list.innerHTML = loans.map(loan => {
-        const r = loan.rate / 100 / 12, n = loan.term;
-        let emi = 0;
-        // Logic tính EMI theo Method
-        if (loan.method === 'flat') {
-             emi = (loan.amount / n) + (loan.amount * r);
-        } else {
-             emi = (r === 0) ? (loan.amount / n) : (loan.amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-        }
-        
+        const monthly = loan.monthlyPayment || 0;
         const paid = loan.paid || 0, remaining = Math.max(0, loan.amount - paid);
-        totalRemaining += remaining; totalMonthly += remaining > 0 ? emi : 0;
-        
-        if (remaining > 0) {
-            let d = loan.day; 
-            if (!closestDate || (d >= today && d < closestDate)) closestDate = d;
-        }
-
+        totalRemaining += remaining; totalMonthly += remaining > 0 ? monthly : 0;
+        if (remaining > 0) { let d = loan.day; if (!closestDate || (d >= today && d < closestDate)) closestDate = d; }
         const pct = Math.min(100, Math.round((paid / loan.amount) * 100));
-        return `<div class="bg-white p-4 rounded-xl shadow-sm border ${remaining === 0 ? 'border-green-200 bg-green-50' : 'border-slate-100 relative overflow-hidden'}">
-            ${remaining > 0 ? `<div class="absolute top-0 right-0 bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-bl-lg">Hạn: ngày ${loan.day}</div>` : ''}
-            <div class="flex justify-between items-start mb-3 mt-1">
-                <div><div class="font-bold text-slate-800 text-lg truncate w-48 ${remaining === 0 ? 'line-through opacity-50' : ''}">${loan.name}</div>
-                <div class="text-xs text-slate-400 font-mono">Lãi: ${loan.rate}% • ${loan.method === 'flat' ? 'Lãi phẳng' : 'Giảm dần'}</div></div>
-                <button onclick="openModal(${loan.id})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pen-to-square"></i></button>
+
+        return `<div class="bg-white p-4 rounded-xl shadow-sm border ${remaining === 0 ? 'border-green-200 bg-green-50 opacity-70' : 'border-slate-100 relative'}">
+            ${remaining > 0 ? `<div class="absolute top-0 right-0 ${loan.day === today ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-blue-50 text-blue-600'} text-[10px] font-bold px-3 py-1 rounded-bl-xl border-l border-b">Hạn: Ngày ${loan.day}</div>` : ''}
+            
+            <div class="flex justify-between items-end mb-3 mt-1">
+                <div class="flex-1">
+                    <div class="font-bold text-slate-800 text-lg ${remaining === 0 ? 'line-through' : ''}">${loan.name}</div>
+                    <div class="text-xs text-slate-500 font-bold mt-1">Còn lại: <span class="text-red-600 text-base">${formatMoney(remaining)}</span></div>
+                </div>
+                <button onclick="openModal(${loan.id})" class="text-slate-300 hover:text-blue-500 p-2"><i class="fa-solid fa-pen-to-square"></i></button>
             </div>
             
-            <div class="flex justify-between text-xs text-slate-500 mb-1"><span>Tiến độ trả nợ</span><span>${pct}%</span></div>
-            <div class="w-full bg-slate-100 rounded-full h-2 mb-4 overflow-hidden"><div class="${remaining === 0 ? 'bg-green-500' : 'bg-orange-500'} h-2 rounded-full transition-all" style="width: ${pct}%"></div></div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 mb-3 overflow-hidden"><div class="${remaining === 0 ? 'bg-green-500' : 'bg-blue-600'} h-1.5 rounded-full" style="width: ${pct}%"></div></div>
             
-            <div class="flex items-center justify-between border-t pt-3 border-dashed">
-                <div><div class="text-[10px] text-slate-400 uppercase">Còn lại</div><div class="font-bold text-red-600 text-base">${formatMoney(remaining)}</div></div>
-                ${remaining > 0 
-                    ? `<button onclick="payDebt(${loan.id}, '${loan.name}', ${Math.round(emi)})" class="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 active:scale-95">Trả ${formatMoney(Math.round(emi))}</button>` 
-                    : '<span class="text-green-600 font-bold border border-green-600 px-2 py-1 rounded text-xs">✅ ĐÃ TẤT TOÁN</span>'}
-            </div>
+            ${remaining > 0 ? `
+            <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-dashed border-slate-200">
+                <div class="text-xs font-bold text-slate-500">Mỗi tháng: ${formatMoney(monthly)}</div>
+                <button onclick="payDebt(${loan.id}, '${loan.name}', ${remaining < monthly ? remaining : monthly})" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 active:scale-95">Trả ngay</button>
+            </div>` 
+            : '<div class="text-center text-xs font-bold text-green-600 uppercase py-2 border-t border-dashed">✅ Đã tất toán</div>'}
         </div>`;
     }).join('');
 
     document.getElementById('total-debt').innerText = formatMoney(totalRemaining);
-    document.getElementById('monthly-pay').innerText = formatMoney(Math.round(totalMonthly));
+    document.getElementById('monthly-pay').innerText = formatMoney(totalMonthly);
     document.getElementById('next-due-date').innerText = closestDate ? `Ngày ${closestDate}` : '---';
 }
 
+// PATCH_v2
 function showDialog(type, msg, callback, defaultVal = '') {
     const el = document.getElementById('custom-dialog');
+    const wrap = document.getElementById('dialog-input-wrapper');
     const inp = document.getElementById('dialog-input');
-    const actions = document.getElementById('dialog-actions');
-    if (!el) return alert(msg);
+    
     el.classList.remove('hidden');
     document.getElementById('dialog-msg').innerText = msg;
-    document.getElementById('dialog-title').innerText = type === 'prompt' ? "Nhập thông tin" : "Xác nhận";
+    document.getElementById('dialog-title').innerText = type === 'prompt' ? "Thanh toán" : "Xác nhận";
     document.getElementById('dialog-icon').innerHTML = `<i class="fa-solid ${type === 'prompt' ? 'fa-pen-to-square' : 'fa-circle-question'} text-blue-500"></i>`;
-    inp.classList.toggle('hidden', type !== 'prompt'); if (type === 'prompt') { inp.value = defaultVal; setTimeout(() => inp.focus(), 100); }
-    let btns = `<button onclick="closeDialog()" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 font-bold hover:bg-slate-200">Hủy</button>`;
-    btns += `<button id="dialog-yes" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/30">Đồng ý</button>`;
-    actions.innerHTML = btns;
-    const yesBtn = document.getElementById('dialog-yes');
-    if (yesBtn) yesBtn.onclick = () => { if (type === 'prompt' && !inp.value) return inp.focus(); callback(type === 'prompt' ? inp.value : true); closeDialog(); };
+    
+    wrap.classList.toggle('hidden', type !== 'prompt');
+    if (type === 'prompt') { inp.value = defaultVal; setTimeout(() => { inp.focus(); inp.select(); }, 100); }
+    
+    const actions = document.getElementById('dialog-actions');
+    actions.innerHTML = `
+        <button onclick="closeDialog()" class="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 font-bold hover:bg-slate-200">Hủy</button>
+        <button id="dialog-yes" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg">Xác nhận</button>
+    `;
+    document.getElementById('dialog-yes').onclick = () => { 
+        if (type === 'prompt' && !inp.value) return inp.focus(); 
+        callback(type === 'prompt' ? inp.value : true); 
+        closeDialog(); 
+    };
 }
 function closeDialog() { document.getElementById('custom-dialog').classList.add('hidden'); }
 function formatMoney(num) { return num.toLocaleString('vi-VN') + ' ₫'; }
@@ -758,17 +679,35 @@ function showToast(msg, type = 'info') {
     const box = document.createElement('div'); box.className = `p-3 rounded-lg shadow-lg text-white font-medium text-sm animate-bounce ${color}`;
     box.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${msg}`; document.getElementById('toast-container').appendChild(box); setTimeout(() => box.remove(), 3000);
 }
+
 function openModal(editId = null) {
+    initLoanForm(); 
     const modal = document.getElementById('modal'); modal.classList.remove('hidden');
     if (editId) {
         const l = APP_DATA.loans.find(i => i.id === editId); document.getElementById('modal-title').innerText = "Cập nhật khoản vay";
         document.getElementById('loanId').value = l.id; document.getElementById('loanName').value = l.name; document.getElementById('loanCode').value = l.code || '';
-        document.getElementById('loanStart').value = l.startDate || new Date().toISOString().split('T')[0]; document.getElementById('loanAmount').value = l.amount;
-        document.getElementById('loanRate').value = l.rate; document.getElementById('loanTerm').value = l.term; document.getElementById('loanDay').value = l.day || 1;
+        document.getElementById('loanStart').value = l.startDate || new Date().toISOString().split('T')[0]; 
+        
+        // PATCH_v2
+        document.getElementById('loanAmount').value = l.amount.toLocaleString('vi-VN');
+        document.getElementById('loanPaid').value = (l.paid || 0).toLocaleString('vi-VN');
+        document.getElementById('loanMonthly').value = (l.monthlyPayment || 0).toLocaleString('vi-VN');
+        document.getElementById('loanInterest').value = (l.totalInterest || 0).toLocaleString('vi-VN');
+        document.getElementById('loanDay').value = l.day || 1;
+        
+        document.getElementById('field-paid').classList.remove('hidden');
+        document.getElementById('btn-delete-loan').classList.remove('hidden');
     } else {
         document.getElementById('modal-title').innerText = "Thêm khoản vay mới"; document.querySelector('form').reset();
         document.getElementById('loanId').value = ''; document.getElementById('loanStart').value = new Date().toISOString().split('T')[0];
+        document.getElementById('field-paid').classList.add('hidden');
+        document.getElementById('btn-delete-loan').classList.add('hidden');
     }
+}
+
+function deleteLoanFromModal() {
+    const id = Number(document.getElementById('loanId').value);
+    if(id) { closeModal(); deleteLoan(id); }
 }
 
 // --- SECURITY UTILS ---
@@ -782,8 +721,8 @@ function escapeHTML(str) {
         .replace(/'/g, "&#039;");
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-// PATCH_v2
-// PATCH_v2
+
+
 function switchTab(tabId) {
     // 1. FAB Control
     const fab = document.querySelector('button[onclick="openQuickAdd()"]');
@@ -812,11 +751,26 @@ function switchTab(tabId) {
     });
 }
 
+
+
+function toggleQuickMenu() { document.getElementById('quick-menu').classList.toggle('hidden'); }
+
+function handleQuickAction(type) {
+    if (type === 'loan') {
+        openModal();
+    } else {
+        switchTab('budget');
+        setType(type);
+        openQuickAdd(); // Gọi hàm focus input
+    }
+}
+
 function openQuickAdd() {
+    // Hàm này giờ chỉ thuần túy focus vào ô nhập tiền
     switchTab('budget');
     setTimeout(() => {
-        document.getElementById('transAmount').focus();
-        window.scrollTo({ top: document.getElementById('transAmount').offsetTop - 100, behavior: 'smooth' });
+        const el = document.getElementById('transAmount');
+        if(el) { el.focus(); window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' }); }
     }, 100);
 }
 
@@ -829,15 +783,8 @@ function formatRealBal(el) {
                         : "bg-slate-200 text-slate-400 px-5 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 }
 
-function resetApp() {
-    const code = prompt('⚠️ CẢNH BÁO MẤT DỮ LIỆU!\nĐể xác nhận xóa, vui lòng gõ chính xác cụm từ: XOA HET');
-    if (code === 'XOA HET') {
-        localStorage.clear();
-        location.reload();
-    } else if (code !== null) {
-        showToast('Mã xác nhận không đúng!', 'error');
-    }
-}
+
+// (Deleted duplicate)
 function exportCSV() {
     let csv = "data:text/csv;charset=utf-8,\uFEFFNgay,Loai,SoTien,DanhMuc,MoTa\n";
     APP_DATA.transactions.forEach(t => csv += `${new Date(t.date).toLocaleDateString('vi-VN')},${t.type},${t.amount},${t.catName},"${t.desc}"\n`);
